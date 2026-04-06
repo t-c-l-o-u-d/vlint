@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# check mode: exit non-zero if any files would change
+--check
+
+# only list files that differ, not the full diff
+--files-with-diff

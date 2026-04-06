@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# check against the RustSec advisory database
+advisories
+
+# enforce banned/allowed crate rules
+bans
+
+# enforce allowed/denied crate source rules
+sources

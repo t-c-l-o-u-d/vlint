@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# treat warnings as errors (https://github.com/adrienverge/yamllint/issues/601)
+--strict
+
+# support human friendly output if possible
+--format auto

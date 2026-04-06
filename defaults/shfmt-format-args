@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# rewrite files in place
+--write
+
+# treat files as bash (not POSIX sh or other dialects)
+--language-dialect=bash
+
+# 2-space indentation
+--indent 2
+
+# place binary operators (|, ||, &&) at the start of the next line
+--binary-next-line

@@ -1,0 +1,3 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# apply auto-fixable rule violations in place
+--fix

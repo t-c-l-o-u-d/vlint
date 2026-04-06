@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# report packages with multiple versions in the dependency tree
+--duplicates
+
+# suppress the "crates" header line
+--quiet

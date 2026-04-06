@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# check with all features enabled
+--all-features
+
+# check release profile to catch release-only issues
+--release
+
+# suppress cargo build progress output
+--quiet

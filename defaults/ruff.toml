@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+line-length = 100
+target-version = "py39"
+preview = true
+
+[lint]
+select = ["ALL"]
+ignore = [
+    "COM812", # conflicts with ruff-format trailing comma handling
+    "D203",   # conflicts with D211 (no-blank-line-before-class)
+    "D213",   # conflicts with D212 (multi-line-summary-first-line)
+]

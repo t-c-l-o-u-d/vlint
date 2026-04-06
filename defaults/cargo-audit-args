@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# treat advisory warnings as errors
+--deny warnings
+
+# deny unmaintained crates
+--deny unmaintained
+
+# deny crates with known unsound code
+--deny unsound
+
+# deny yanked crate versions
+--deny yanked
+
+# suppress informational output
+--quiet

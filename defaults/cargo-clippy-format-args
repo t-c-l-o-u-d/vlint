@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# apply machine-applicable fixes automatically
+--fix
+
+# allow fixes when there are uncommitted changes
+--allow-dirty
+
+# allow fixes when there are staged changes
+--allow-staged
+
+# fix with all features enabled
+--all-features
+
+# suppress cargo build progress output
+--quiet

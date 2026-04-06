@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# check with all feature combinations enabled
+--all-features
+
+# suppress cargo build progress output
+--quiet
+
+# separator: pass remaining args to clippy/rustc
+--
+
+# treat all warnings as errors
+-D warnings
+
+# enable all clippy lints
+-D clippy::all
+
+# deny correctness lints (likely bugs)
+-D clippy::correctness
+
+# deny suspicious code patterns
+-D clippy::suspicious
+
+# deny unnecessary complexity
+-D clippy::complexity
+
+# deny known performance pitfalls
+-D clippy::perf
+
+# deny style inconsistencies
+-D clippy::style
+
+# deny pedantic style lints
+-D clippy::pedantic
+
+# deny cargo manifest issues
+-D clippy::cargo
+
+# allow: too many false positives in practice
+-A clippy::doc-markdown

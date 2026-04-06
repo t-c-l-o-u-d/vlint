@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# run tests in release mode to catch release-profile-specific bugs
+--release
+
+# suppress per-test output; show only failures
+--quiet
