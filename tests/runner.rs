@@ -20,6 +20,7 @@ fn minimal_tool(config_precedence: Option<ConfigPrecedence>) -> OwnedToolDef {
         env_vars: vec![],
         container_env_vars: vec![],
         probe_args: vec![],
+        min_version: None,
     }
 }
 

@@ -36,6 +36,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: &[],
         probe_args: &["--version"],
+        min_version: None,
     },
     ToolDef {
         linter_id: LinterId::Rust,
@@ -53,6 +54,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: CARGO_CONTAINER_ENV,
         probe_args: &["audit", "--version"],
+        min_version: None,
     },
     ToolDef {
         linter_id: LinterId::Rust,
@@ -70,6 +72,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: CARGO_CONTAINER_ENV,
         probe_args: &["--version"],
+        min_version: None,
     },
     ToolDef {
         linter_id: LinterId::Rust,
@@ -87,6 +90,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: CARGO_CONTAINER_ENV,
         probe_args: &["--version"],
+        min_version: None,
     },
     ToolDef {
         linter_id: LinterId::Rust,
@@ -104,6 +108,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: CARGO_CONTAINER_ENV,
         probe_args: &["clippy", "--version"],
+        min_version: None,
     },
     ToolDef {
         linter_id: LinterId::Rust,
@@ -135,6 +140,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: CARGO_CONTAINER_ENV,
         probe_args: &["deny", "--version"],
+        min_version: None,
     },
     ToolDef {
         linter_id: LinterId::Rust,
@@ -152,6 +158,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: CARGO_CONTAINER_ENV,
         probe_args: &["fmt", "--version"],
+        min_version: None,
     },
     ToolDef {
         linter_id: LinterId::Rust,
@@ -169,6 +176,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: CARGO_CONTAINER_ENV,
         probe_args: &["--version"],
+        min_version: None,
     },
     ToolDef {
         linter_id: LinterId::Rust,
@@ -186,6 +194,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: CARGO_CONTAINER_ENV,
         probe_args: &["--version"],
+        min_version: None,
     },
     ToolDef {
         linter_id: LinterId::Markdown,
@@ -217,6 +226,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: &[],
         probe_args: &["--version"],
+        min_version: None,
     },
     ToolDef {
         linter_id: LinterId::Python,
@@ -242,6 +252,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: &[],
         probe_args: &["--version"],
+        min_version: None,
     },
     ToolDef {
         linter_id: LinterId::Python,
@@ -267,6 +278,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: &[],
         probe_args: &["--version"],
+        min_version: None,
     },
     ToolDef {
         linter_id: LinterId::Python,
@@ -292,6 +304,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: &[],
         probe_args: &["--version"],
+        min_version: None,
     },
     ToolDef {
         linter_id: LinterId::Bash,
@@ -321,6 +334,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: &[],
         probe_args: &["--version"],
+        min_version: Some("0.10.0"),
     },
     ToolDef {
         linter_id: LinterId::Bash,
@@ -338,6 +352,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: &[],
         probe_args: &["--version"],
+        min_version: None,
     },
     ToolDef {
         linter_id: LinterId::Go,
@@ -377,6 +392,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: &[],
         probe_args: &["--version"],
+        min_version: Some("2.0.0"),
     },
     ToolDef {
         linter_id: LinterId::Go,
@@ -394,6 +410,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: &[],
         probe_args: &["-version"],
+        min_version: Some("0.6.0"),
     },
     ToolDef {
         linter_id: LinterId::Yaml,
@@ -432,6 +449,7 @@ static TOOLS: &[ToolDef] = &[
         env_vars: &[],
         container_env_vars: &[],
         probe_args: &["--version"],
+        min_version: None,
     },
 ];
 
