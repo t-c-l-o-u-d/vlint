@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 set -euo pipefail
 
-# shellcheck: the runner's pre-installed version predates --rcfile (added in
-# 0.9.0). Download the latest release to guarantee a compatible version.
+# bundled version of shellcheck is too old
 gh release download --repo koalaman/shellcheck --pattern 'shellcheck-*.linux.x86_64.tar.xz' -D /tmp
 tar -xJ -C /tmp -f /tmp/shellcheck-*.linux.x86_64.tar.xz
 sudo install -m755 /tmp/shellcheck-*/shellcheck /usr/local/bin/shellcheck
