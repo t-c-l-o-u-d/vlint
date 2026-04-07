@@ -183,6 +183,22 @@ pub static PATTERN_RULES: &[PatternRule] = &[
         kind: PatternKind::Ext,
         pattern: "css",
     },
+    // go
+    PatternRule {
+        linter: LinterId::Go,
+        kind: PatternKind::Ext,
+        pattern: "go",
+    },
+    PatternRule {
+        linter: LinterId::Go,
+        kind: PatternKind::File,
+        pattern: "go.mod",
+    },
+    PatternRule {
+        linter: LinterId::Go,
+        kind: PatternKind::File,
+        pattern: "go.sum",
+    },
     PatternRule {
         linter: LinterId::Css,
         kind: PatternKind::Ext,

@@ -1,5 +1,6 @@
 # 🚧 Under construction. Usable, but not feature complete. 🚧
 
+<!-- markdownlint-disable-next-line MD025 -->
 # vlint - Lint and Format Code
 
 Automatic linting and formatting with built in defaults.

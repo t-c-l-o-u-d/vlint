@@ -1,0 +1,17 @@
+---
+# SPDX-License-Identifier: AGPL-3.0-or-later
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - gofumpt
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+linters-settings:
+  gofumpt:
+    extra-rules: true
