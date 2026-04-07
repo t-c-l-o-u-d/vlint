@@ -23,9 +23,9 @@ pub fn detect_all(workspace: &Path, verbose: bool) -> DetectionResult {
     // Project-level markers (ansible directory/glob detection)
     let project_markers = pattern::match_project_markers(workspace);
     if verbose && !project_markers.is_empty() {
-        eprintln!("  project markers:");
+        println!("  project markers:");
         for linter in &project_markers {
-            eprintln!("    {linter} (directory/glob)");
+            println!("    {linter} (directory/glob)");
         }
     }
     for linter in project_markers {
@@ -159,7 +159,7 @@ fn classify_files(
                 let winner_str = winner.map_or("none".to_string(), |w| w.to_string());
                 let detail: Vec<String> =
                     scores.iter().map(|(id, s)| format!("{id}={s}")).collect();
-                eprintln!(
+                println!(
                     "  {}: {} -> {winner_str}",
                     relative.display(),
                     detail.join(", ")
