@@ -16,8 +16,8 @@ fn resolve_tag(tag: &str) -> String {
         .unwrap_or_default()
         .as_secs()
         / 86400;
-    // Gregorian calendar conversion (Hinnant's algorithm)
-    let z = days as u32 + 719_468;
+    // Gregorian calendar conversion (Hinnant's algorithm, all u64)
+    let z = days + 719_468;
     let era = z / 146_097;
     let doe = z - era * 146_097;
     let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;

@@ -4,6 +4,7 @@ mod ini_parse;
 pub mod resolve;
 
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 use std::path::{Path, PathBuf};
 
 use crate::catalog::linter::OwnedToolDef;
@@ -34,7 +35,7 @@ pub struct Config {
 }
 
 impl Config {
-    fn merge_vlint(&mut self, map: &HashMap<String, String>) {
+    fn merge_vlint<S: BuildHasher>(&mut self, map: &HashMap<String, String, S>) {
         if let Some(v) = map.get("format") {
             self.format = match v.as_str() {
                 "check" => Some(FormatMode::Check),
@@ -82,7 +83,10 @@ impl Config {
         }
     }
 
-    fn merge_tools(&mut self, tools: &HashMap<String, HashMap<String, String>>) {
+    fn merge_tools<S: BuildHasher, T: BuildHasher>(
+        &mut self,
+        tools: &HashMap<String, HashMap<String, String, T>, S>,
+    ) {
         for (name, overrides) in tools {
             let entry = self.tool_overrides.entry(name.clone()).or_default();
             for (key, value) in overrides {
@@ -108,9 +112,9 @@ pub fn load_config(_workspace: &Path, config_path: Option<&Path>) -> Config {
 }
 
 /// Apply tool overrides from config onto the owned catalog.
-pub fn apply_tool_overrides(
+pub fn apply_tool_overrides<S: BuildHasher, T: BuildHasher>(
     tools: &mut [OwnedToolDef],
-    overrides: &HashMap<String, HashMap<String, String>>,
+    overrides: &HashMap<String, HashMap<String, String, T>, S>,
 ) {
     for tool in tools.iter_mut() {
         if let Some(ovr) = overrides.get(&tool.name) {
@@ -119,7 +123,7 @@ pub fn apply_tool_overrides(
     }
 }
 
-fn merge_tool(tool: &mut OwnedToolDef, ovr: &HashMap<String, String>) {
+fn merge_tool<S: BuildHasher>(tool: &mut OwnedToolDef, ovr: &HashMap<String, String, S>) {
     if let Some(v) = ovr.get("binary_name") {
         tool.binary_name.clone_from(v);
     }

@@ -37,3 +37,6 @@
 
 # allow: too many false positives in practice
 -A clippy::doc-markdown
+
+# allow: duplicate transitive crate versions are outside our control
+-A clippy::multiple_crate_versions
