@@ -1,3 +1,5 @@
+# 🚧 Under construction. Usable, but not feature complete. 🚧
+
 # vlint - Lint and Format Code
 
 Automatic linting and formatting with built in defaults.
