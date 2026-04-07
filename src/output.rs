@@ -72,6 +72,8 @@ pub fn print_results(output: &LintOutput) -> u8 {
 }
 
 pub fn print_tool_list(tools: &[OwnedToolDef], chain: &[Box<dyn Backend>], verbose: bool) {
+    let mut tools: Vec<&OwnedToolDef> = tools.iter().collect();
+    tools.sort_by_key(|t| t.name.as_str());
     println!("Supported tools:");
     for tool in tools {
         let backend = chain

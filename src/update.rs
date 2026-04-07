@@ -28,7 +28,7 @@ fn run_update(verbose: bool) -> Result<(), Box<dyn std::error::Error>> {
 
     let current = env!("CARGO_PKG_VERSION");
     if verbose {
-        eprintln!("vlint: checking for updates (current: v{current})...");
+        println!("vlint: checking for updates (current: v{current})...");
     }
 
     let client = reqwest::blocking::Client::builder()
@@ -39,13 +39,13 @@ fn run_update(verbose: bool) -> Result<(), Box<dyn std::error::Error>> {
 
     if !is_newer(&latest, current) {
         if verbose {
-            eprintln!("vlint: already up to date (v{current})");
+            println!("vlint: already up to date (v{current})");
         }
         return Ok(());
     }
 
     if verbose {
-        eprintln!("vlint: downloading v{latest} from {bin_url}");
+        println!("vlint: downloading v{latest} from {bin_url}");
     }
 
     let exe = std::env::current_exe()?;
@@ -54,7 +54,9 @@ fn run_update(verbose: bool) -> Result<(), Box<dyn std::error::Error>> {
     verify_sha256(&client, &sha_url, &tmp)?;
     replace_binary(&tmp, &exe)?;
 
-    println!("Updated vlint from v{current} to v{latest}");
+    if verbose {
+        println!("vlint: updated from v{current} to v{latest}");
+    }
     Ok(())
 }
 
@@ -66,7 +68,7 @@ fn get_latest_release(
         format!("https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest");
 
     if verbose {
-        eprintln!("vlint: fetching release info from {api_url}");
+        println!("vlint: fetching release info from {api_url}");
     }
 
     let resp = client.get(&api_url).send()?;

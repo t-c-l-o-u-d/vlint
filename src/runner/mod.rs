@@ -116,7 +116,7 @@ fn run_tool(
     };
 
     let Some(backend) = backend::resolve_tool(tool, chain) else {
-        eprintln!("  {}: no backend available", tool.name);
+        println!("  {}: no backend available", tool.name);
         return Some(ToolResult {
             tool_name: tool.name.clone(),
             success: false,
@@ -199,10 +199,10 @@ fn verbose_line(name: &str, backend: &str, resolved: Option<&ResolvedConfig>, ar
             } else {
                 r.path.clone()
             };
-            eprintln!("  [verbose] {name}: backend={backend}, config={config_str}, args={args:?}");
+            println!("  {name}: backend={backend}, config={config_str}, args={args:?}");
         }
         None => {
-            eprintln!("  [verbose] {name}: backend={backend}, args={args:?}");
+            println!("  {name}: backend={backend}, args={args:?}");
         }
     }
 }
