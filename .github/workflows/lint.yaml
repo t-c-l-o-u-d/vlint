@@ -15,6 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - run: bash .github/scripts/bootstrap-linting.bash
+        env:
+          GH_TOKEN: ${{ github.token }}
       - run: cargo build --release
       - run: install -m755 target/release/vlint /usr/local/bin/vlint
       - run: vlint
