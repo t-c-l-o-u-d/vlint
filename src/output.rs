@@ -40,9 +40,14 @@ pub fn print_results(output: &LintOutput) -> u8 {
     let mut any_fail = false;
     let mut any_error = false;
 
-    for run in &output.results {
+    let mut results: Vec<_> = output.results.iter().collect();
+    results.sort_by_key(|r| format!("{}", r.linter_id));
+
+    for run in &results {
         println!("  {}:", run.linter_id);
-        for tool in &run.tool_results {
+        let mut tools: Vec<_> = run.tool_results.iter().collect();
+        tools.sort_by_key(|t| t.tool_name.as_str());
+        for tool in &tools {
             let status = if tool.exit_code == 2 {
                 any_error = true;
                 color::error("ERROR")
@@ -56,7 +61,9 @@ pub fn print_results(output: &LintOutput) -> u8 {
         }
     }
 
-    for s in &output.skipped {
+    let mut skipped: Vec<_> = output.skipped.iter().collect();
+    skipped.sort_by_key(|s| format!("{}", s.linter_id));
+    for s in &skipped {
         println!("  {}:", s.linter_id);
         println!("    {}: {} file(s)", color::skip("SKIPPED"), s.files.len());
         for f in &s.files {

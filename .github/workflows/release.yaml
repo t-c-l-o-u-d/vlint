@@ -19,7 +19,7 @@ jobs:
       ${{ inputs.version && format('v{0}', inputs.version) || 'Build' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Validate and Update Version
         if: inputs.version != ''
         run: |
@@ -65,15 +65,12 @@ jobs:
           echo "artifact=vlint-${VERSION}-x86_64-linux" >> "$GITHUB_OUTPUT"
       - name: Build Release Binary
         run: >-
-          bash .github/scripts/build.bash
-          ${{ steps.version.outputs.version }}
-          x86_64 linux
+          bash .github/scripts/build.bash ${{ steps.version.outputs.version }} x86_64 linux
       - name: Checksum
         run: >-
-          sha256sum "${{ steps.version.outputs.artifact }}"
-          > "${{ steps.version.outputs.artifact }}.sha256"
+          sha256sum "${{ steps.version.outputs.artifact }}" > "${{ steps.version.outputs.artifact }}.sha256"
       - name: Upload Binary Artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: ${{ steps.version.outputs.artifact }}
           path: ${{ steps.version.outputs.artifact }}
@@ -81,7 +78,7 @@ jobs:
         if: inputs.version != ''
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
+        run: |-
           gh release create \
             "v${{ inputs.version }}" \
             --title "v${{ inputs.version }}" \

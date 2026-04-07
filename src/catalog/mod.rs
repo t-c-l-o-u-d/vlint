@@ -414,6 +414,42 @@ static TOOLS: &[ToolDef] = &[
     },
     ToolDef {
         linter_id: LinterId::Yaml,
+        name: "yamlfmt",
+        binary_name: "yamlfmt",
+        container_image: "yamlfmt",
+        container_needs_network: false,
+        container_needs_rw_mount: false,
+        pass_files: true,
+        subcommand: &[],
+        lint_args: Some(include_str!("../../defaults/yamlfmt-lint-args")),
+        format_print_args: Some(include_str!("../../defaults/yamlfmt-format-print-args")),
+        format_args: Some(include_str!("../../defaults/yamlfmt-format-args")),
+        config_precedence: Some(ConfigPrecedence {
+            locations: &[
+                ConfigLocation::Walk {
+                    filename: ".yamlfmt",
+                    stop_at: WalkStop::Home,
+                },
+                ConfigLocation::Walk {
+                    filename: ".yamlfmt.yaml",
+                    stop_at: WalkStop::Home,
+                },
+                ConfigLocation::Walk {
+                    filename: ".yamlfmt.yml",
+                    stop_at: WalkStop::Home,
+                },
+            ],
+            flag: "-conf",
+            cache_filename: "yamlfmt.yaml",
+            default: include_str!("../../defaults/yamlfmt.yaml"),
+        }),
+        env_vars: &[],
+        container_env_vars: &[],
+        probe_args: &["-version"],
+        min_version: None,
+    },
+    ToolDef {
+        linter_id: LinterId::Yaml,
         name: "yamllint",
         binary_name: "yamllint",
         container_image: "yamllint",

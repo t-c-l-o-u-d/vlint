@@ -1,0 +1,3 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# check if files need formatting without modifying them
+-lint

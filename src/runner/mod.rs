@@ -44,13 +44,17 @@ pub fn run_linters(
     let mut results = Vec::new();
     let mut skipped = Vec::new();
 
-    for (&linter_id, files) in &detection.file_assignments {
+    let mut assignments: Vec<_> = detection.file_assignments.iter().collect();
+    assignments.sort_by_key(|(id, _)| format!("{id}"));
+
+    for (&linter_id, files) in assignments {
         if files.is_empty() {
             continue;
         }
 
-        let linter_tools: Vec<&OwnedToolDef> =
+        let mut linter_tools: Vec<&OwnedToolDef> =
             tools.iter().filter(|t| t.linter_id == linter_id).collect();
+        linter_tools.sort_by_key(|t| t.name.as_str());
 
         if linter_tools.is_empty() {
             println!(
