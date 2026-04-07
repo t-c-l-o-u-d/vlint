@@ -19,14 +19,14 @@ fn parse_version(s: &str) -> Option<(u32, u32, u32)> {
         let minor = parts
             .next()?
             .chars()
-            .take_while(|c| c.is_ascii_digit())
+            .take_while(char::is_ascii_digit)
             .collect::<String>()
             .parse::<u32>()
             .ok()?;
         let patch = parts
             .next()?
             .chars()
-            .take_while(|c| c.is_ascii_digit())
+            .take_while(char::is_ascii_digit)
             .collect::<String>()
             .parse::<u32>()
             .ok()?;
