@@ -147,11 +147,16 @@ fn run_tool(
     }
     let arg_refs: Vec<&str> = final_args.iter().map(String::as_str).collect();
 
-    if verbose {
-        let backend_str = backend.kind().to_string();
-        verbose_line(&tool.name, &backend_str, resolved.as_ref(), &arg_refs);
-    }
-    println!("  Running {}...", tool.name);
+    let tool_name = color::tool(&tool.name);
+    let running_line = if verbose {
+        format!(
+            "  Running {}...",
+            verbose_tag(&tool_name, &backend.kind().to_string(), resolved.as_ref())
+        )
+    } else {
+        format!("  Running {tool_name}...")
+    };
+    println!("{running_line}");
 
     match backend.run(tool, &arg_refs, workspace, config_path) {
         Ok(result) => {
@@ -160,12 +165,12 @@ fn run_tool(
             } else {
                 color::fail("FAIL")
             };
-            println!("  {status}: {}", tool.name);
             print_tool_output(&result, verbose);
+            println!("  {status}: {tool_name}");
             Some(result)
         }
         Err(e) => {
-            println!("  {}: {}: {e}", color::error("ERROR"), tool.name);
+            println!("  {}: {tool_name}: {e}", color::error("ERROR"));
             Some(ToolResult {
                 tool_name: tool.name.clone(),
                 success: false,
@@ -188,32 +193,74 @@ pub fn build_args(tool: &OwnedToolDef, flags: &[String], config_path: Option<&st
     out
 }
 
-fn verbose_line(name: &str, backend: &str, resolved: Option<&ResolvedConfig>, args: &[&str]) {
+fn verbose_tag(name: &str, backend: &str, resolved: Option<&ResolvedConfig>) -> String {
     let home = std::env::var("HOME").unwrap_or_default();
-    match resolved {
-        Some(r) => {
-            let config_str = if r.is_default {
-                "vlint default".to_string()
-            } else if !home.is_empty() && r.path.starts_with(&home) {
-                r.path.replacen(&home, "~", 1)
-            } else {
-                r.path.clone()
-            };
-            println!("  {name}: backend={backend}, config={config_str}, args={args:?}");
+    let config_str = resolved.map(|r| {
+        if r.is_default {
+            "vlint default".to_string()
+        } else if !home.is_empty() && r.path.starts_with(&home) {
+            r.path.replacen(&home, "~", 1)
+        } else {
+            r.path.clone()
         }
-        None => {
-            println!("  {name}: backend={backend}, args={args:?}");
+    });
+    match config_str {
+        Some(c) => format!("{name} [{backend}, {c}]"),
+        None => format!("{name} [{backend}]"),
+    }
+}
+
+fn terminal_columns() -> Option<usize> {
+    use std::io::IsTerminal;
+    if !std::io::stdout().is_terminal() {
+        return None;
+    }
+    unsafe {
+        let mut ws: libc::winsize = std::mem::zeroed();
+        if libc::ioctl(libc::STDOUT_FILENO, libc::TIOCGWINSZ, &mut ws) == 0 && ws.ws_col > 0 {
+            Some(ws.ws_col as usize)
+        } else {
+            None
+        }
+    }
+}
+
+fn print_indented(text: &str, indent: &str, max_cols: Option<usize>) {
+    let continuation = format!("{indent}  ");
+    for line in text.lines() {
+        let fits = max_cols.is_none_or(|cols| indent.len() + line.len() <= cols);
+        if fits {
+            println!("{indent}{line}");
+            continue;
+        }
+        let avail = max_cols.unwrap().saturating_sub(indent.len());
+        let cont_avail = max_cols.unwrap().saturating_sub(continuation.len());
+        let mut rest = line;
+        let mut first = true;
+        while !rest.is_empty() {
+            let (cur_indent, cur_avail) = if first {
+                (indent, avail)
+            } else {
+                (continuation.as_str(), cont_avail)
+            };
+            let take = if rest.len() <= cur_avail {
+                rest.len()
+            } else if let Some(pos) = rest[..cur_avail].rfind(' ') {
+                pos + 1
+            } else {
+                cur_avail
+            };
+            println!("{cur_indent}{}", rest[..take].trim_end());
+            rest = rest[take..].trim_start_matches(' ');
+            first = false;
         }
     }
 }
 
 fn print_tool_output(result: &ToolResult, verbose: bool) {
     if verbose || !result.success {
-        for line in result.stdout.lines() {
-            println!("    {line}");
-        }
-        for line in result.stderr.lines() {
-            println!("    {line}");
-        }
+        let cols = terminal_columns();
+        print_indented(&result.stdout, "    ", cols);
+        print_indented(&result.stderr, "    ", cols);
     }
 }

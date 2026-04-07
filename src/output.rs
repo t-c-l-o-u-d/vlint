@@ -52,19 +52,15 @@ pub fn print_results(output: &LintOutput) -> u8 {
                 any_fail = true;
                 color::fail("FAIL")
             };
-            println!("    {status}: {}", tool.tool_name);
+            println!("    {status}: {}", color::tool(&tool.tool_name));
         }
     }
 
     for s in &output.skipped {
-        println!(
-            "  {}: {} {} file(s)",
-            color::skip("SKIPPED"),
-            s.linter_id,
-            s.files.len()
-        );
+        println!("  {}:", s.linter_id);
+        println!("    {}: {} file(s)", color::skip("SKIPPED"), s.files.len());
         for f in &s.files {
-            println!("    - {}", f.display());
+            println!("      - {}", f.display());
         }
     }
 

@@ -65,6 +65,11 @@ pub fn error(text: &str) -> String {
     colorize(text, state().error)
 }
 
+#[must_use]
+pub fn tool(text: &str) -> String {
+    colorize(text, "\x1b[34m")
+}
+
 fn colorize(text: &str, ansi: &str) -> String {
     if state().enabled {
         format!("{ansi}{text}{RESET}")
