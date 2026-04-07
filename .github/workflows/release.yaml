@@ -65,7 +65,7 @@ jobs:
           echo "artifact=vlint-${VERSION}-x86_64-linux" >> "$GITHUB_OUTPUT"
       - name: Build Release Binary
         run: >-
-          bash .github/build.bash
+          bash .github/scripts/build.bash
           ${{ steps.version.outputs.version }}
           x86_64 linux
       - name: Checksum
