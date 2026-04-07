@@ -11,11 +11,18 @@ struct ColorState {
     fail: &'static str,
     skip: &'static str,
     error: &'static str,
+    tool: &'static str,
 }
 
 const RESET: &str = "\x1b[0m";
 
-pub fn init(mode: &ColorMode, pass_color: &str, fail_color: &str, skip_color: &str) {
+pub fn init(
+    mode: &ColorMode,
+    pass_color: &str,
+    fail_color: &str,
+    skip_color: &str,
+    tool_color: &str,
+) {
     let enabled = match mode {
         ColorMode::Always => true,
         ColorMode::Never => false,
@@ -31,6 +38,7 @@ pub fn init(mode: &ColorMode, pass_color: &str, fail_color: &str, skip_color: &s
             fail: resolve_ansi(fail_color, "\x1b[31m"), // default red
             skip: resolve_ansi(skip_color, "\x1b[33m"), // default yellow
             error: resolve_ansi("yellow", "\x1b[33m"),
+            tool: resolve_ansi(tool_color, "\x1b[34m"), // default blue
         })
         .ok();
 }
@@ -42,6 +50,7 @@ fn state() -> &'static ColorState {
         fail: "\x1b[31m",
         skip: "\x1b[33m",
         error: "\x1b[33m",
+        tool: "\x1b[34m",
     })
 }
 
@@ -67,7 +76,7 @@ pub fn error(text: &str) -> String {
 
 #[must_use]
 pub fn tool(text: &str) -> String {
-    colorize(text, "\x1b[34m")
+    colorize(text, state().tool)
 }
 
 fn colorize(text: &str, ansi: &str) -> String {

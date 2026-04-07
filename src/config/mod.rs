@@ -29,6 +29,7 @@ pub struct Config {
     pub pass_color: Option<String>,
     pub fail_color: Option<String>,
     pub skip_color: Option<String>,
+    pub tool_color: Option<String>,
     pub auto_update: Option<bool>,
     pub man_page_install: Option<bool>,
     pub tool_overrides: HashMap<String, HashMap<String, String>>,
@@ -66,6 +67,9 @@ impl Config {
         }
         if let Some(v) = map.get("skip_color") {
             self.skip_color = Some(v.clone());
+        }
+        if let Some(v) = map.get("tool_color") {
+            self.tool_color = Some(v.clone());
         }
         if let Some(v) = map.get("auto_update") {
             self.auto_update = match v.as_str() {

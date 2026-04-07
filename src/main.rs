@@ -16,6 +16,17 @@ use std::process::ExitCode;
 use crate::config::FormatMode;
 use crate::runner::Mode;
 
+fn init_color(config: &config::Config) {
+    let mode = config.color.as_ref().unwrap_or(&color::ColorMode::Auto);
+    color::init(
+        mode,
+        config.pass_color.as_deref().unwrap_or("green"),
+        config.fail_color.as_deref().unwrap_or("red"),
+        config.skip_color.as_deref().unwrap_or("yellow"),
+        config.tool_color.as_deref().unwrap_or("blue"),
+    );
+}
+
 fn filter_backend_chain(chain: &mut Vec<Box<dyn backend::Backend>>, name: &str) {
     let kind = match name {
         "auto" => None,
@@ -77,11 +88,7 @@ fn main() -> ExitCode {
         update::try_auto_update(args.verbose);
     }
 
-    let color_mode = config.color.as_ref().unwrap_or(&color::ColorMode::Auto);
-    let pass_color = config.pass_color.as_deref().unwrap_or("green");
-    let fail_color = config.fail_color.as_deref().unwrap_or("red");
-    let skip_color = config.skip_color.as_deref().unwrap_or("yellow");
-    color::init(color_mode, pass_color, fail_color, skip_color);
+    init_color(&config);
 
     // Build tool catalog: hardcoded defaults + config overrides
     let mut tools = catalog::build_owned_catalog();

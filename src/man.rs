@@ -19,7 +19,7 @@ Native tools on PATH are preferred, with automatic fallback to containers
 via systemd-nspawn, podman, or docker.
 .PP
 Each tool independently resolves through the backend chain.
-shellcheck might run natively while shellharden falls back to a container.
+shellcheck might run natively while golangci-lint falls back to a container.
 .SH OPTIONS
 .TP
 .BR \-t ", " \-\-tools
@@ -92,6 +92,9 @@ Standard INI format. All options are commented out showing their defaults.
 # Terminal color for skipped tools.
 #skip_color = yellow
 
+# Terminal color for tool names.
+#tool_color = blue
+
 # Container registry hostname.
 #registry = ghcr.io/t-c-l-o-u-d/vlint-images
 
@@ -159,11 +162,11 @@ Controls color output. Takes one of "auto", "always", or "never". If set to
 
 Added in version 0.0.1.
 .TP 4
-.B pass_color=\fR, \fBfail_color=\fR, \fBskip_color=\fR
-Sets the ANSI color for PASS, FAIL, and SKIPPED output lines respectively.
+.B pass_color=\fR, \fBfail_color=\fR, \fBskip_color=\fR, \fBtool_color=\fR
+Sets the ANSI color for PASS, FAIL, SKIPPED, and tool name output respectively.
 Takes a color name: "red", "green", "yellow", "blue", "magenta", "cyan",
 "white", or any bright variant ("bright-red", "bright-green", etc.). Defaults
-to "green", "red", and "yellow" respectively.
+to "green", "red", "yellow", and "blue" respectively.
 
 Added in version 0.0.1.
 .TP 4
