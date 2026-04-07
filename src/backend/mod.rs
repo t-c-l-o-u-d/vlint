@@ -47,7 +47,13 @@ pub trait Backend: Send + Sync {
     ///
     /// # Errors
     /// Returns `Err` if the tool could not be launched or its output could not be read.
-    fn run(&self, tool: &OwnedToolDef, args: &[&str], workspace: &Path) -> Result<ToolResult>;
+    fn run(
+        &self,
+        tool: &OwnedToolDef,
+        args: &[&str],
+        workspace: &Path,
+        config_path: Option<&Path>,
+    ) -> Result<ToolResult>;
 }
 
 #[must_use]

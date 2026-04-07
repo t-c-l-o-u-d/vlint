@@ -59,6 +59,9 @@ fn path_backend_sh_available() {
 fn container_config(runtime: &str) -> vlint::backend::container::ContainerConfig {
     vlint::backend::container::ContainerConfig {
         runtime: runtime.to_string(),
+        registry: None,
+        image_prefix: String::new(),
+        tag: "latest".to_string(),
     }
 }
 
@@ -66,15 +69,7 @@ fn container_config(runtime: &str) -> vlint::backend::container::ContainerConfig
 fn build_run_args_starts_with_run_rm() {
     let tool = minimal_tool();
     let workspace = PathBuf::from("/workspace");
-    let args = build_run_args(
-        &container_config("podman"),
-        &tool,
-        &workspace,
-        &[],
-        None,
-        "",
-        "latest",
-    );
+    let args = build_run_args(&container_config("podman"), &tool, &workspace, &[], None);
     assert_eq!(args[0], "run");
     assert_eq!(args[1], "--rm");
 }
@@ -83,15 +78,7 @@ fn build_run_args_starts_with_run_rm() {
 fn build_run_args_mounts_workspace_readonly() {
     let tool = minimal_tool();
     let workspace = PathBuf::from("/myproject");
-    let args = build_run_args(
-        &container_config("podman"),
-        &tool,
-        &workspace,
-        &[],
-        None,
-        "",
-        "latest",
-    );
+    let args = build_run_args(&container_config("podman"), &tool, &workspace, &[], None);
     let mount_idx = args.iter().position(|a| a == "-v").unwrap();
     let mount = &args[mount_idx + 1];
     assert!(mount.starts_with("/myproject:"));
@@ -103,15 +90,7 @@ fn build_run_args_rw_mount_when_needed() {
     let mut tool = minimal_tool();
     tool.container_needs_rw_mount = true;
     let workspace = PathBuf::from("/myproject");
-    let args = build_run_args(
-        &container_config("podman"),
-        &tool,
-        &workspace,
-        &[],
-        None,
-        "",
-        "latest",
-    );
+    let args = build_run_args(&container_config("podman"), &tool, &workspace, &[], None);
     let mount_idx = args.iter().position(|a| a == "-v").unwrap();
     let mount = &args[mount_idx + 1];
     assert!(!mount.contains("ro,"), "rw mount should not have ro flag");
@@ -121,15 +100,7 @@ fn build_run_args_rw_mount_when_needed() {
 fn build_run_args_no_network_flag_when_not_needed() {
     let tool = minimal_tool();
     let workspace = PathBuf::from("/workspace");
-    let args = build_run_args(
-        &container_config("podman"),
-        &tool,
-        &workspace,
-        &[],
-        None,
-        "",
-        "latest",
-    );
+    let args = build_run_args(&container_config("podman"), &tool, &workspace, &[], None);
     assert!(args.contains(&"--network=none".to_string()));
 }
 
@@ -138,15 +109,7 @@ fn build_run_args_no_network_flag_absent_when_needed() {
     let mut tool = minimal_tool();
     tool.container_needs_network = true;
     let workspace = PathBuf::from("/workspace");
-    let args = build_run_args(
-        &container_config("docker"),
-        &tool,
-        &workspace,
-        &[],
-        None,
-        "",
-        "latest",
-    );
+    let args = build_run_args(&container_config("docker"), &tool, &workspace, &[], None);
     assert!(!args.contains(&"--network=none".to_string()));
 }
 
@@ -154,15 +117,7 @@ fn build_run_args_no_network_flag_absent_when_needed() {
 fn build_run_args_podman_uses_keep_id() {
     let tool = minimal_tool();
     let workspace = PathBuf::from("/workspace");
-    let args = build_run_args(
-        &container_config("podman"),
-        &tool,
-        &workspace,
-        &[],
-        None,
-        "",
-        "latest",
-    );
+    let args = build_run_args(&container_config("podman"), &tool, &workspace, &[], None);
     assert!(args.contains(&"--userns=keep-id".to_string()));
 }
 
@@ -171,16 +126,50 @@ fn build_run_args_tool_args_at_end() {
     let tool = minimal_tool();
     let workspace = PathBuf::from("/workspace");
     let extra = &["--strict", "--format=json"];
+    let args = build_run_args(&container_config("podman"), &tool, &workspace, extra, None);
+    let last_two: Vec<&str> = args.iter().map(String::as_str).rev().take(2).collect();
+    assert!(last_two.contains(&"--strict"));
+    assert!(last_two.contains(&"--format=json"));
+}
+
+#[test]
+fn build_run_args_mounts_config_dir_outside_workspace() {
+    let tool = minimal_tool();
+    let workspace = PathBuf::from("/workspace");
+    let config = PathBuf::from("/home/user/.cache/vlint/tool.yaml");
     let args = build_run_args(
         &container_config("podman"),
         &tool,
         &workspace,
-        extra,
-        None,
-        "",
-        "latest",
+        &[],
+        Some(&config),
     );
-    let last_two: Vec<&str> = args.iter().map(String::as_str).rev().take(2).collect();
-    assert!(last_two.contains(&"--strict"));
-    assert!(last_two.contains(&"--format=json"));
+    let mounts: Vec<&str> = args
+        .windows(2)
+        .filter(|w| w[0] == "-v")
+        .map(|w| w[1].as_str())
+        .collect();
+    assert!(
+        mounts
+            .iter()
+            .any(|m| m.starts_with("/home/user/.cache/vlint:")),
+        "config dir should be mounted: {mounts:?}"
+    );
+}
+
+#[test]
+fn build_run_args_no_extra_mount_for_config_in_workspace() {
+    let tool = minimal_tool();
+    let workspace = PathBuf::from("/workspace");
+    let config = PathBuf::from("/workspace/.tool.cfg");
+    let args = build_run_args(
+        &container_config("podman"),
+        &tool,
+        &workspace,
+        &[],
+        Some(&config),
+    );
+    // Only the workspace mount should appear
+    let mount_count = args.windows(2).filter(|w| w[0] == "-v").count();
+    assert_eq!(mount_count, 1, "only workspace should be mounted");
 }

@@ -131,6 +131,10 @@ fn run_tool(
         .as_ref()
         .and_then(|prec| resolve_config(prec, workspace));
 
+    let config_path = resolved
+        .as_ref()
+        .map(|r| std::path::Path::new(r.path.as_str()));
+
     let mut final_args = build_args(tool, args, resolved.as_ref().map(|r| r.path.as_str()));
     if tool.pass_files {
         for f in files {
@@ -149,7 +153,7 @@ fn run_tool(
     }
     println!("  Running {}...", tool.name);
 
-    match backend.run(tool, &arg_refs, workspace) {
+    match backend.run(tool, &arg_refs, workspace, config_path) {
         Ok(result) => {
             let status = if result.success {
                 color::pass("PASS")

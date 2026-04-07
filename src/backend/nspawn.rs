@@ -81,7 +81,13 @@ impl Backend for NspawnBackend {
         }
     }
 
-    fn run(&self, tool: &OwnedToolDef, args: &[&str], workspace: &Path) -> Result<ToolResult> {
+    fn run(
+        &self,
+        tool: &OwnedToolDef,
+        args: &[&str],
+        workspace: &Path,
+        config_path: Option<&Path>,
+    ) -> Result<ToolResult> {
         let bundle =
             bundle_path(tool).with_context(|| format!("OCI bundle not found for {}", tool.name))?;
 
@@ -89,11 +95,12 @@ impl Backend for NspawnBackend {
         cmd.arg(format!("--oci-bundle={}", bundle.display()));
         cmd.arg(format!("--bind={}:/workspace", workspace.display()));
 
-        // Mount $HOME read-only so tool configs are accessible at their original paths.
-        if let Ok(home) = std::env::var("HOME")
-            && !home.is_empty()
+        // Mount only the config file's parent directory, not all of $HOME.
+        if let Some(dir) = config_path
+            .and_then(|p| p.parent())
+            .filter(|d| !d.as_os_str().is_empty() && !d.starts_with(workspace))
         {
-            cmd.arg(format!("--bind-ro={home}"));
+            cmd.arg(format!("--bind-ro={}", dir.display()));
         }
 
         if !tool.container_needs_network {

@@ -41,19 +41,20 @@ impl Backend for PodmanBackend {
         Ok(())
     }
 
-    fn run(&self, tool: &OwnedToolDef, args: &[&str], workspace: &Path) -> Result<ToolResult> {
+    fn run(
+        &self,
+        tool: &OwnedToolDef,
+        args: &[&str],
+        workspace: &Path,
+        config_path: Option<&Path>,
+    ) -> Result<ToolResult> {
         let config = ContainerConfig {
             runtime: "podman".to_string(),
+            registry: self.registry.clone(),
+            image_prefix: self.image_prefix.clone(),
+            tag: self.tag.clone(),
         };
-        let run_args = build_run_args(
-            &config,
-            tool,
-            workspace,
-            args,
-            self.registry.as_deref(),
-            &self.image_prefix,
-            &self.tag,
-        );
+        let run_args = build_run_args(&config, tool, workspace, args, config_path);
 
         let output = Command::new("podman")
             .args(&run_args)

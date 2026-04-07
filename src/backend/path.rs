@@ -43,7 +43,13 @@ impl Backend for PathBackend {
         }
     }
 
-    fn run(&self, tool: &OwnedToolDef, args: &[&str], workspace: &Path) -> Result<ToolResult> {
+    fn run(
+        &self,
+        tool: &OwnedToolDef,
+        args: &[&str],
+        workspace: &Path,
+        _config_path: Option<&Path>,
+    ) -> Result<ToolResult> {
         let mut cmd = Command::new(&tool.binary_name);
         cmd.current_dir(workspace);
 

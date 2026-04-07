@@ -95,6 +95,11 @@ fn write_default_cache(precedence: &ConfigPrecedence) -> Option<PathBuf> {
 
     std::fs::create_dir_all(&cache_dir).ok()?;
     let path = cache_dir.join(precedence.cache_filename);
-    std::fs::write(&path, precedence.default).ok()?;
+    let needs_write = std::fs::read(&path)
+        .map(|existing| existing != precedence.default.as_bytes())
+        .unwrap_or(true);
+    if needs_write {
+        std::fs::write(&path, precedence.default).ok()?;
+    }
     Some(path)
 }

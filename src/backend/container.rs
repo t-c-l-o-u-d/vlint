@@ -46,6 +46,9 @@ pub fn image_name(tool: &OwnedToolDef, registry: Option<&str>, prefix: &str, tag
 
 pub struct ContainerConfig {
     pub runtime: String,
+    pub registry: Option<String>,
+    pub image_prefix: String,
+    pub tag: String,
 }
 
 /// Read the current process's real UID and GID from `/proc/self/status`.
@@ -73,9 +76,7 @@ pub fn build_run_args(
     tool: &OwnedToolDef,
     workspace: &std::path::Path,
     args: &[&str],
-    registry: Option<&str>,
-    prefix: &str,
-    tag: &str,
+    config_path: Option<&std::path::Path>,
 ) -> Vec<String> {
     let mut run_args = vec!["run".to_string(), "--rm".to_string()];
 
@@ -89,13 +90,14 @@ pub fn build_run_args(
     run_args.push("-w".to_string());
     run_args.push("/workspace".to_string());
 
-    // Mount $HOME read-only so tool configs under $HOME are accessible at their
-    // original paths inside the container (XDG, ~/.config/, vlint cache, etc.).
-    if let Ok(home) = std::env::var("HOME")
-        && !home.is_empty()
+    // Mount the config file's parent directory read-only if it lives outside the workspace.
+    // A targeted mount avoids SELinux relabeling restrictions that prevent mounting all of $HOME.
+    if let Some(dir) = config_path
+        .and_then(|p| p.parent())
+        .filter(|d| !d.as_os_str().is_empty() && !d.starts_with(workspace))
     {
         run_args.push("-v".to_string());
-        run_args.push(format!("{home}:{home}:ro"));
+        run_args.push(format!("{}:{}:ro,z", dir.display(), dir.display()));
     }
 
     if config.runtime == "podman" {
@@ -116,7 +118,12 @@ pub fn build_run_args(
         run_args.push(format!("{key}={val}"));
     }
 
-    run_args.push(image_name(tool, registry, prefix, tag));
+    run_args.push(image_name(
+        tool,
+        config.registry.as_deref(),
+        &config.image_prefix,
+        &config.tag,
+    ));
 
     run_args.push(tool.binary_name.clone());
     run_args.extend(args.iter().map(|a| (*a).to_string()));
