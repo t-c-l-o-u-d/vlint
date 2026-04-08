@@ -244,6 +244,22 @@ pub static PATTERN_RULES: &[PatternRule] = &[
         kind: PatternKind::Ext,
         pattern: "md",
     },
+    // mkosi
+    PatternRule {
+        linter: LinterId::Mkosi,
+        kind: PatternKind::File,
+        pattern: "mkosi.conf",
+    },
+    PatternRule {
+        linter: LinterId::Mkosi,
+        kind: PatternKind::Dir,
+        pattern: "mkosi.conf.d",
+    },
+    PatternRule {
+        linter: LinterId::Mkosi,
+        kind: PatternKind::Dir,
+        pattern: "mkosi.images",
+    },
     // python
     PatternRule {
         linter: LinterId::Python,
