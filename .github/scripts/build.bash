@@ -14,7 +14,7 @@ main() {
   local platform="${3:-linux}"
 
   step "Building release binary"
-  cargo build --release
+  BUILD_DATE="$(date +%Y-%m-%d)" cargo build --release
 
   step "Preparing binary artifact"
   cp target/release/vlint "vlint-${version}-${arch}-${platform}"

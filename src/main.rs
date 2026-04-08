@@ -27,6 +27,25 @@ fn init_color(config: &config::Config) {
     );
 }
 
+fn resolve_workspace(
+    cwd: std::path::PathBuf,
+    files: Vec<std::path::PathBuf>,
+) -> (std::path::PathBuf, Option<Vec<std::path::PathBuf>>) {
+    if files.is_empty() {
+        (cwd, None)
+    } else if files.len() == 1 && files[0].is_dir() {
+        (files[0].clone(), None)
+    } else {
+        for path in &files {
+            if !path.exists() {
+                eprintln!("error: path does not exist: {}", path.display());
+                std::process::exit(2);
+            }
+        }
+        (cwd, Some(files))
+    }
+}
+
 fn filter_backend_chain(chain: &mut Vec<Box<dyn backend::Backend>>, name: &str) {
     let kind = match name {
         "auto" => None,
@@ -52,19 +71,7 @@ fn main() -> ExitCode {
         std::process::exit(2);
     });
 
-    let (workspace, explicit_files) = if args.files.is_empty() {
-        (cwd, None)
-    } else if args.files.len() == 1 && args.files[0].is_dir() {
-        (args.files[0].clone(), None)
-    } else {
-        for path in &args.files {
-            if !path.exists() {
-                eprintln!("error: path does not exist: {}", path.display());
-                std::process::exit(2);
-            }
-        }
-        (cwd, Some(args.files))
-    };
+    let (workspace, explicit_files) = resolve_workspace(cwd, args.files);
 
     let config = config::load_config(&workspace, args.config.as_deref());
 
@@ -78,7 +85,7 @@ fn main() -> ExitCode {
             return ExitCode::SUCCESS;
         }
         Some(cli::Subcommand::Version) => {
-            println!("vlint {}", env!("CARGO_PKG_VERSION"));
+            cli::print_version(args.verbose);
             return ExitCode::SUCCESS;
         }
         _ => {}

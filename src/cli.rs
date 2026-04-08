@@ -30,7 +30,17 @@ impl CliArgs {
             config: None,
             files: Vec::new(),
         };
-        let mut args = args;
+        // Expand combined short flags: -vV -> -v -V
+        let expanded: Vec<String> = args
+            .flat_map(|arg| {
+                if !arg.starts_with("--") && arg.starts_with('-') && arg.len() > 2 {
+                    arg[1..].chars().map(|c| format!("-{c}")).collect()
+                } else {
+                    vec![arg]
+                }
+            })
+            .collect();
+        let mut args = expanded.into_iter();
         let mut positional_only = false;
 
         while let Some(arg) = args.next() {
@@ -65,6 +75,16 @@ impl CliArgs {
         }
 
         result
+    }
+}
+
+pub fn print_version(verbose: bool) {
+    println!("vlint {}", env!("CARGO_PKG_VERSION"));
+    if verbose {
+        if let Some(date) = option_env!("BUILD_DATE") {
+            println!("Build Date: {date}");
+        }
+        println!("Source: {}", env!("CARGO_PKG_REPOSITORY"));
     }
 }
 
