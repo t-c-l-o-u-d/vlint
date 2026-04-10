@@ -16,7 +16,7 @@ vlint \- lint and format code using native tools or containers
 vlint auto-detects file types using weighted consensus scoring and runs
 the right linters.
 Native tools on PATH are preferred, with automatic fallback to containers
-via systemd-nspawn, podman, or docker.
+via podman or docker.
 .PP
 Each tool independently resolves through the backend chain.
 shellcheck might run natively while golangci-lint falls back to a container.
@@ -105,9 +105,8 @@ Standard INI format. All options are commented out showing their defaults.
 #tag = latest
 
 # Backend:
-# auto   | auto-detect in order: path, nspawn, podman, docker
+# auto   | auto-detect in order: path, podman, docker
 # path   | run tools ONLY from PATH
-# nspawn | run tools ONLY via systemd-nspawn
 # podman | run tools ONLY via Podman
 # docker | run tools ONLY via Docker
 #backend = auto
@@ -149,9 +148,9 @@ written to disk and linting proceeds. Defaults to unset (lint only).
 Added in version 0.0.1.
 .TP 4
 .B backend=
-Selects the execution backend. Takes one of "auto", "path", "nspawn", "podman",
+Selects the execution backend. Takes one of "auto", "path", "podman",
 or "docker". If set to "auto", backends are probed in order: PATH,
-systemd-nspawn, podman, docker. If set to any other value, only that backend is
+podman, docker. If set to any other value, only that backend is
 used and tools that cannot run on it are skipped. Defaults to "auto".
 
 Added in version 0.0.1.

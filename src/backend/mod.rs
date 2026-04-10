@@ -2,7 +2,6 @@
 
 pub mod container;
 pub mod docker;
-pub mod nspawn;
 pub mod path;
 pub mod podman;
 
@@ -15,7 +14,6 @@ use crate::catalog::linter::{OwnedToolDef, ToolResult};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BackendKind {
     Path,
-    Nspawn,
     Podman,
     Docker,
 }
@@ -24,7 +22,6 @@ impl std::fmt::Display for BackendKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Path => write!(f, "PATH"),
-            Self::Nspawn => write!(f, "nspawn"),
             Self::Podman => write!(f, "podman"),
             Self::Docker => write!(f, "docker"),
         }
@@ -64,7 +61,6 @@ pub fn discovery_chain(
 ) -> Vec<Box<dyn Backend>> {
     vec![
         Box::new(path::PathBackend),
-        Box::new(nspawn::NspawnBackend),
         Box::new(podman::PodmanBackend::new(registry, image_prefix, tag)),
         Box::new(docker::DockerBackend::new(registry, image_prefix, tag)),
     ]

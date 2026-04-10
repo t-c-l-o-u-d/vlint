@@ -52,7 +52,6 @@ fn filter_backend_chain(chain: &mut Vec<Box<dyn backend::Backend>>, name: &str) 
         "path" => Some(backend::BackendKind::Path),
         "docker" => Some(backend::BackendKind::Docker),
         "podman" => Some(backend::BackendKind::Podman),
-        "nspawn" => Some(backend::BackendKind::Nspawn),
         other => {
             eprintln!("vlint: unknown backend: {other}");
             std::process::exit(2);
