@@ -171,10 +171,11 @@ fn run_tool(
 
     match backend.run(tool, &arg_refs, workspace, config_path) {
         Ok(mut result) => {
-            if let Some(pre) = pre_hash {
-                if result.success && hash_files(files) != pre {
-                    result.success = false;
-                }
+            if let Some(pre) = pre_hash
+                && result.success
+                && hash_files(files) != pre
+            {
+                result.success = false;
             }
             let status = if result.success {
                 color::pass("PASS")
