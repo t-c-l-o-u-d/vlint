@@ -34,7 +34,10 @@ fn resolve_workspace(
     if files.is_empty() {
         (cwd, None)
     } else if files.len() == 1 && files[0].is_dir() {
-        (files[0].clone(), None)
+        (std::fs::canonicalize(&files[0]).unwrap_or_else(|e| {
+            eprintln!("error: cannot resolve path {}: {e}", files[0].display());
+            std::process::exit(2);
+        }), None)
     } else {
         for path in &files {
             if !path.exists() {
