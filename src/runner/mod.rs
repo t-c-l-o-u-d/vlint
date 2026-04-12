@@ -3,6 +3,7 @@
 pub mod format;
 pub mod lint;
 
+use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
 use crate::backend::{self, Backend};
@@ -162,8 +163,19 @@ fn run_tool(
     };
     println!("{running_line}");
 
+    let pre_hash = if matches!(mode, Mode::Format) {
+        Some(hash_files(files))
+    } else {
+        None
+    };
+
     match backend.run(tool, &arg_refs, workspace, config_path) {
-        Ok(result) => {
+        Ok(mut result) => {
+            if let Some(pre) = pre_hash {
+                if result.success && hash_files(files) != pre {
+                    result.success = false;
+                }
+            }
             let status = if result.success {
                 color::pass("PASS")
             } else {
@@ -195,6 +207,16 @@ pub fn build_args(tool: &OwnedToolDef, flags: &[String], config_path: Option<&st
     }
     out.extend_from_slice(flags);
     out
+}
+
+fn hash_files(files: &[PathBuf]) -> u64 {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    for f in files {
+        if let Ok(content) = std::fs::read(f) {
+            content.hash(&mut hasher);
+        }
+    }
+    hasher.finish()
 }
 
 fn verbose_tag(name: &str, backend: &str, resolved: Option<&ResolvedConfig>) -> String {
