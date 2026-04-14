@@ -5,7 +5,9 @@ use std::process::Command;
 
 use anyhow::{Context, Result};
 
-use crate::backend::container::{ContainerConfig, build_run_args};
+use crate::backend::container::{
+    ContainerConfig, build_run_args, image_name, local_image_id, remove_image,
+};
 use crate::backend::{Backend, BackendKind};
 use crate::catalog::linter::{OwnedToolDef, ToolResult};
 
@@ -54,12 +56,26 @@ impl Backend for PodmanBackend {
             image_prefix: self.image_prefix.clone(),
             tag: self.tag.clone(),
         };
-        let run_args = build_run_args(&config, tool, workspace, args, config_path);
 
+        let image = image_name(
+            tool,
+            config.registry.as_deref(),
+            &config.image_prefix,
+            &config.tag,
+        );
+        let old_id = local_image_id("podman", &image);
+
+        let run_args = build_run_args(&config, tool, workspace, args, config_path);
         let output = Command::new("podman")
             .args(&run_args)
             .output()
             .with_context(|| format!("failed to run podman for {}", tool.name))?;
+
+        if let Some(old) = &old_id
+            && local_image_id("podman", &image).as_ref() != Some(old)
+        {
+            remove_image("podman", old);
+        }
 
         Ok(ToolResult {
             tool_name: tool.name.clone(),

@@ -5,7 +5,9 @@ use std::process::Command;
 
 use anyhow::{Context, Result};
 
-use crate::backend::container::{ContainerConfig, build_run_args};
+use crate::backend::container::{
+    ContainerConfig, build_run_args, image_name, local_image_id, remove_image,
+};
 use crate::backend::{Backend, BackendKind};
 use crate::catalog::linter::{OwnedToolDef, ToolResult};
 
@@ -54,12 +56,26 @@ impl Backend for DockerBackend {
             image_prefix: self.image_prefix.clone(),
             tag: self.tag.clone(),
         };
-        let run_args = build_run_args(&config, tool, workspace, args, config_path);
 
+        let image = image_name(
+            tool,
+            config.registry.as_deref(),
+            &config.image_prefix,
+            &config.tag,
+        );
+        let old_id = local_image_id("docker", &image);
+
+        let run_args = build_run_args(&config, tool, workspace, args, config_path);
         let output = Command::new("docker")
             .args(&run_args)
             .output()
             .with_context(|| format!("failed to run docker for {}", tool.name))?;
+
+        if let Some(old) = &old_id
+            && local_image_id("docker", &image).as_ref() != Some(old)
+        {
+            remove_image("docker", old);
+        }
 
         Ok(ToolResult {
             tool_name: tool.name.clone(),

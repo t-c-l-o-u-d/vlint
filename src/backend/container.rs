@@ -78,7 +78,11 @@ pub fn build_run_args(
     args: &[&str],
     config_path: Option<&std::path::Path>,
 ) -> Vec<String> {
-    let mut run_args = vec!["run".to_string(), "--rm".to_string()];
+    let mut run_args = vec![
+        "run".to_string(),
+        "--rm".to_string(),
+        "--pull=always".to_string(),
+    ];
 
     let mount_opt = if tool.container_needs_rw_mount {
         "z"
@@ -129,4 +133,24 @@ pub fn build_run_args(
     run_args.extend(args.iter().map(|a| (*a).to_string()));
 
     run_args
+}
+
+/// Return the local image ID for a fully qualified image reference, or `None`
+/// if the image is not present locally.
+#[must_use]
+pub fn local_image_id(runtime: &str, image: &str) -> Option<String> {
+    std::process::Command::new(runtime)
+        .args(["image", "inspect", "--format", "{{.Id}}", image])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+}
+
+/// Remove a specific image by ID.  Silently ignored if the image is still
+/// tagged or otherwise in use.
+pub fn remove_image(runtime: &str, id: &str) {
+    let _ = std::process::Command::new(runtime)
+        .args(["rmi", id])
+        .output();
 }
