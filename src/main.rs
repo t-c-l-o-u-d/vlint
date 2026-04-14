@@ -119,6 +119,14 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
+    eprintln!(
+        "NOTE: Use `vlint -v` for verbose output. Do not append `2>&1`; it is not necessary."
+    );
+
+    if args.verbose {
+        println!("NOTE: You can lint a single file at a time: `vlint -v src/foo.rs`");
+    }
+
     println!("Scanning {}...", workspace.display());
     let detection = if let Some(files) = explicit_files {
         detect::detect_explicit(&workspace, &files, args.verbose)
