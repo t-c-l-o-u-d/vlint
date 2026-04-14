@@ -93,6 +93,7 @@ pub struct ToolDef {
     pub container_env_vars: &'static [(&'static str, &'static str)],
     pub probe_args: &'static [&'static str],
     pub min_version: Option<&'static str>,
+    pub version_regex: Option<&'static str>,
 }
 
 #[derive(Debug, Clone)]
@@ -113,6 +114,7 @@ pub struct OwnedToolDef {
     pub container_env_vars: Vec<(String, String)>,
     pub probe_args: Vec<String>,
     pub min_version: Option<String>,
+    pub version_regex: Option<String>,
 }
 
 /// Parse an args string: whitespace-separated tokens, `#` line comments ignored.
@@ -151,6 +153,7 @@ impl From<&ToolDef> for OwnedToolDef {
                 .collect(),
             probe_args: t.probe_args.iter().map(|s| (*s).to_string()).collect(),
             min_version: t.min_version.map(str::to_string),
+            version_regex: t.version_regex.map(str::to_string),
         }
     }
 }

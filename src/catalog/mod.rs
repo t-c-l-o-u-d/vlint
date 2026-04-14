@@ -37,6 +37,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: &[],
         probe_args: &["--version"],
         min_version: None,
+        version_regex: Some(r"bandit (\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Rust,
@@ -55,6 +56,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: CARGO_CONTAINER_ENV,
         probe_args: &["audit", "--version"],
         min_version: None,
+        version_regex: Some(r"cargo-audit(?:-audit)? (\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Rust,
@@ -73,6 +75,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: CARGO_CONTAINER_ENV,
         probe_args: &["--version"],
         min_version: None,
+        version_regex: Some(r"cargo (\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Rust,
@@ -91,6 +94,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: CARGO_CONTAINER_ENV,
         probe_args: &["--version"],
         min_version: None,
+        version_regex: Some(r"cargo (\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Rust,
@@ -109,6 +113,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: CARGO_CONTAINER_ENV,
         probe_args: &["clippy", "--version"],
         min_version: None,
+        version_regex: Some(r"clippy (\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Rust,
@@ -141,6 +146,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: CARGO_CONTAINER_ENV,
         probe_args: &["deny", "--version"],
         min_version: None,
+        version_regex: Some(r"cargo-deny (\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Rust,
@@ -159,6 +165,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: CARGO_CONTAINER_ENV,
         probe_args: &["fmt", "--version"],
         min_version: None,
+        version_regex: Some(r"rustfmt (\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Rust,
@@ -177,6 +184,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: CARGO_CONTAINER_ENV,
         probe_args: &["--version"],
         min_version: None,
+        version_regex: Some(r"cargo (\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Rust,
@@ -195,6 +203,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: CARGO_CONTAINER_ENV,
         probe_args: &["--version"],
         min_version: None,
+        version_regex: Some(r"cargo (\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Markdown,
@@ -227,6 +236,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: &[],
         probe_args: &["--version"],
         min_version: None,
+        version_regex: Some(r"markdownlint-cli2 v(\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Mkosi,
@@ -245,6 +255,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: &[],
         probe_args: &["--version"],
         min_version: None,
+        version_regex: Some(r"mkosi (\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Python,
@@ -271,6 +282,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: &[],
         probe_args: &["--version"],
         min_version: None,
+        version_regex: Some(r"mypy (\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Python,
@@ -297,6 +309,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: &[],
         probe_args: &["--version"],
         min_version: None,
+        version_regex: Some(r"ruff (\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Python,
@@ -323,6 +336,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: &[],
         probe_args: &["--version"],
         min_version: None,
+        version_regex: Some(r"ruff (\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Bash,
@@ -353,6 +367,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: &[],
         probe_args: &["--version"],
         min_version: Some("0.10.0"),
+        version_regex: Some(r"version:\s+(\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Bash,
@@ -371,6 +386,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: &[],
         probe_args: &["--version"],
         min_version: None,
+        version_regex: Some(r"^v(\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Go,
@@ -411,6 +427,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: &[],
         probe_args: &["--version"],
         min_version: Some("2.0.0"),
+        version_regex: Some(r"has version (\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Go,
@@ -429,6 +446,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: &[],
         probe_args: &["-version"],
         min_version: Some("0.6.0"),
+        version_regex: Some(r"(?:v|go)(\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Yaml,
@@ -465,6 +483,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: &[],
         probe_args: &["-version"],
         min_version: None,
+        version_regex: Some(r"yamlfmt (\d+\.\d+\.\d+)"),
     },
     ToolDef {
         linter_id: LinterId::Yaml,
@@ -504,6 +523,7 @@ static TOOLS: &[ToolDef] = &[
         container_env_vars: &[],
         probe_args: &["--version"],
         min_version: None,
+        version_regex: Some(r"yamllint (\d+\.\d+\.\d+)"),
     },
 ];
 

@@ -26,6 +26,7 @@ fn minimal_tool() -> OwnedToolDef {
         container_env_vars: vec![],
         probe_args: vec!["--version".to_string()],
         min_version: None,
+        version_regex: None,
     }
 }
 
