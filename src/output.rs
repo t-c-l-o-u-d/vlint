@@ -28,7 +28,7 @@ pub fn print_detection_summary(detection: &DetectionResult) {
 }
 
 #[must_use]
-pub fn print_results(output: &LintOutput) -> u8 {
+pub fn print_results(output: &LintOutput, verbose: bool) -> u8 {
     if output.results.is_empty() && output.skipped.is_empty() {
         println!("No linters ran.");
         return 0;
@@ -66,8 +66,10 @@ pub fn print_results(output: &LintOutput) -> u8 {
     for s in &skipped {
         println!("  {}:", s.linter_id);
         println!("    {}: {} file(s)", color::skip("SKIPPED"), s.files.len());
-        for f in &s.files {
-            println!("      - {}", f.display());
+        if verbose {
+            for f in &s.files {
+                println!("      - {}", f.display());
+            }
         }
     }
 

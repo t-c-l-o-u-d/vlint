@@ -45,7 +45,7 @@ fn all_pass_returns_zero() {
         }],
         skipped: vec![],
     };
-    assert_eq!(print_results(&output), 0);
+    assert_eq!(print_results(&output, false), 0);
 }
 
 #[test]
@@ -57,7 +57,7 @@ fn any_fail_returns_one() {
         }],
         skipped: vec![],
     };
-    assert_eq!(print_results(&output), 1);
+    assert_eq!(print_results(&output, false), 1);
 }
 
 #[test]
@@ -69,7 +69,7 @@ fn any_error_returns_two() {
         }],
         skipped: vec![],
     };
-    assert_eq!(print_results(&output), 2);
+    assert_eq!(print_results(&output, false), 2);
 }
 
 #[test]
@@ -81,7 +81,7 @@ fn error_takes_precedence_over_fail() {
         }],
         skipped: vec![],
     };
-    assert_eq!(print_results(&output), 2);
+    assert_eq!(print_results(&output, false), 2);
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn empty_output_returns_zero() {
         results: vec![],
         skipped: vec![],
     };
-    assert_eq!(print_results(&output), 0);
+    assert_eq!(print_results(&output, false), 0);
 }
 
 #[test]
@@ -102,5 +102,5 @@ fn skipped_only_returns_zero() {
             files: vec![PathBuf::from("index.js")],
         }],
     };
-    assert_eq!(print_results(&output), 0);
+    assert_eq!(print_results(&output, false), 0);
 }

@@ -69,6 +69,13 @@ fn filter_backend_chain(chain: &mut Vec<Box<dyn backend::Backend>>, name: &str) 
 }
 
 fn main() -> ExitCode {
+    // Exit quietly on SIGPIPE (e.g. `vlint | head`) instead of panicking.
+    #[cfg(unix)]
+    // SAFETY: restoring the default disposition for SIGPIPE is a standard CLI idiom.
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
+
     let args = cli::CliArgs::parse();
 
     let cwd = std::env::current_dir().unwrap_or_else(|e| {
@@ -134,7 +141,9 @@ fn main() -> ExitCode {
         detect::detect_all(&workspace, args.verbose)
     };
 
-    output::print_detection_summary(&detection);
+    if args.verbose {
+        output::print_detection_summary(&detection);
+    }
 
     if detection.file_assignments.values().all(Vec::is_empty) {
         println!("Nothing to lint.");
@@ -152,7 +161,7 @@ fn main() -> ExitCode {
                 Mode::FormatPrint,
                 args.verbose,
             );
-            ExitCode::from(output::print_results(&fmt))
+            ExitCode::from(output::print_results(&fmt, args.verbose))
         }
         Some(FormatMode::Apply) => {
             println!("Running format...\n");
@@ -164,16 +173,16 @@ fn main() -> ExitCode {
                 Mode::Format,
                 args.verbose,
             );
-            let fmt_code = output::print_results(&fmt);
+            let fmt_code = output::print_results(&fmt, args.verbose);
             println!();
             println!("Running lint...\n");
             let lint = runner::lint::lint(&detection, &chain, &tools, &workspace, args.verbose);
-            ExitCode::from(fmt_code.max(output::print_results(&lint)))
+            ExitCode::from(fmt_code.max(output::print_results(&lint, args.verbose)))
         }
         None => {
             println!("Running lint...\n");
             let results = runner::lint::lint(&detection, &chain, &tools, &workspace, args.verbose);
-            ExitCode::from(output::print_results(&results))
+            ExitCode::from(output::print_results(&results, args.verbose))
         }
     }
 }
