@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 [package]
 name = "vlint"
-version = "0.0.7"
+version = "0.0.8"
 edition = "2024"
 license = "AGPL-3.0-or-later"
 description = "Lint and format code using native tools or containers"
