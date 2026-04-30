@@ -52,6 +52,41 @@ fn resolve_workspace(
     }
 }
 
+fn stdout_is_piped() -> bool {
+    use std::io::IsTerminal;
+    !std::io::stdout().is_terminal()
+}
+
+fn stderr_merged_with_stdout() -> bool {
+    use std::io::IsTerminal;
+    use std::os::fd::AsRawFd;
+    if std::io::stderr().is_terminal() {
+        return false;
+    }
+    let out_fd = std::io::stdout().as_raw_fd();
+    let err_fd = std::io::stderr().as_raw_fd();
+    // SAFETY: fstat on valid std descriptors; return code checked before read.
+    unsafe {
+        let mut a: libc::stat = std::mem::zeroed();
+        let mut b: libc::stat = std::mem::zeroed();
+        if libc::fstat(out_fd, &raw mut a) != 0 || libc::fstat(err_fd, &raw mut b) != 0 {
+            return false;
+        }
+        a.st_dev == b.st_dev && a.st_ino == b.st_ino
+    }
+}
+
+fn print_io_warnings() {
+    if stdout_is_piped() {
+        eprintln!(
+            "WARNING: stdout is being piped or redirected. vlint is not designed to be piped."
+        );
+    }
+    if stderr_merged_with_stdout() {
+        eprintln!("WARNING: stderr is merged with stdout (e.g. `2>&1`). Run vlint without it.");
+    }
+}
+
 fn filter_backend_chain(chain: &mut Vec<Box<dyn backend::Backend>>, name: &str) {
     let kind = match name {
         "auto" => None,
@@ -126,13 +161,11 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    eprintln!(
-        "NOTE: Use `vlint -v` for verbose output. Do not append `2>&1`; it is not necessary."
-    );
-
     if args.verbose {
         println!("NOTE: You can lint a single file at a time: `vlint -v src/foo.rs`");
     }
+
+    print_io_warnings();
 
     println!("Scanning {}...", workspace.display());
     let detection = if let Some(files) = explicit_files {
@@ -147,10 +180,11 @@ fn main() -> ExitCode {
 
     if detection.file_assignments.values().all(Vec::is_empty) {
         println!("Nothing to lint.");
+        print_io_warnings();
         return ExitCode::SUCCESS;
     }
 
-    match config.format {
+    let exit_code = match config.format {
         Some(FormatMode::Check) => {
             println!("Running format (check)...\n");
             let fmt = runner::format::format(
@@ -184,5 +218,8 @@ fn main() -> ExitCode {
             let results = runner::lint::lint(&detection, &chain, &tools, &workspace, args.verbose);
             ExitCode::from(output::print_results(&results, args.verbose))
         }
-    }
+    };
+
+    print_io_warnings();
+    exit_code
 }
