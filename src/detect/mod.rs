@@ -110,14 +110,31 @@ fn classify_files(
 
         let mut score = FileScore::new();
 
-        // MIME votes
-        if let Some(linter) = libmagic_mime.as_ref().and_then(|m| mime::mime_to_linter(m)) {
-            score.vote(linter, W_MIME);
-        } else if let Some(linter) = xdg_mime_result
-            .as_ref()
-            .and_then(|m| mime::mime_to_linter(m))
-        {
-            score.vote(linter, W_MIME);
+        let ext_match = pattern::match_extension(ext);
+
+        // libmagic can mis-ID short files (e.g. a .py with `<title>` regex
+        // gets tagged text/html); trust a recognized non-Skip extension over
+        // a disagreeing MIME, but still let MIME confirm when they agree.
+        let mime_with_linter: Option<(&str, LinterId)> = libmagic_mime
+            .as_deref()
+            .and_then(|m| mime::mime_to_linter(m).map(|l| (m, l)))
+            .or_else(|| {
+                xdg_mime_result
+                    .as_deref()
+                    .and_then(|m| mime::mime_to_linter(m).map(|l| (m, l)))
+            });
+
+        let mut mime_suppression: Option<(String, LinterId)> = None;
+        if let Some((mime_str, linter)) = mime_with_linter {
+            let ext_disagrees = matches!(
+                ext_match,
+                Some((ext_linter, _)) if ext_linter != LinterId::Skip && ext_linter != linter
+            );
+            if ext_disagrees {
+                mime_suppression = Some((mime_str.to_string(), linter));
+            } else {
+                score.vote(linter, W_MIME);
+            }
         }
 
         // Shebang vote
@@ -129,7 +146,7 @@ fn classify_files(
         }
 
         // Pattern votes (extension, filename, prefix)
-        if let Some((linter, weight)) = pattern::match_extension(ext) {
+        if let Some((linter, weight)) = ext_match {
             score.vote(linter, weight);
         }
         if let Some((linter, weight)) = pattern::match_filename(filename) {
@@ -159,8 +176,11 @@ fn classify_files(
                 let winner_str = winner.map_or("none".to_string(), |w| w.to_string());
                 let detail: Vec<String> =
                     scores.iter().map(|(id, s)| format!("{id}={s}")).collect();
+                let suppression = mime_suppression.as_ref().map_or(String::new(), |(m, l)| {
+                    format!("  (suppressed: {m} as {l}, .{ext} wins)")
+                });
                 println!(
-                    "  {}: {} -> {winner_str}",
+                    "  {}: {} -> {winner_str}{suppression}",
                     relative.display(),
                     detail.join(", ")
                 );

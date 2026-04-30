@@ -191,6 +191,49 @@ fn detect_explicit_bash_shebang_is_bash() {
 }
 
 #[test]
+fn detect_explicit_py_with_html_pattern_is_python() {
+    // Regression test for issue #3: a short .py file with HTML-shaped content
+    // (e.g. an HTML-scraping regex) used to be tagged text/html by libmagic and
+    // misclassified as Html. The .py extension must win.
+    let content = "import re\n\
+        \n\
+        _TAG_RE = re.compile(r\"<title[^>]*>([^<]+)</title>\", re.IGNORECASE)\n\
+        \n\
+        # Module parses an HTML <title> element and the surrounding chrome.\n\
+        # The <foo> in this comment is unrelated.\n\
+        \n\
+        def scrape(html: str):\n\
+            m = _TAG_RE.search(html)\n\
+            return m.group(1) if m else None\n";
+    let (workspace, path) = workspace_with_file("scraper.py", content);
+    let result = detect::detect_explicit(workspace.path(), &[path], false);
+    assert!(
+        result.file_assignments.contains_key(&LinterId::Python),
+        "expected Python detection, got {:?}",
+        result.file_assignments.keys().collect::<Vec<_>>()
+    );
+    assert!(
+        !result.file_assignments.contains_key(&LinterId::Html),
+        ".py must not be classified as Html, got {:?}",
+        result.file_assignments.keys().collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn detect_explicit_html_file_is_html() {
+    // Confirms that .html files still classify as Html when MIME and extension
+    // agree (the suppression in issue #3's fix only triggers on disagreement).
+    let content = "<!DOCTYPE html>\n<html><head><title>x</title></head><body>hi</body></html>\n";
+    let (workspace, path) = workspace_with_file("page.html", content);
+    let result = detect::detect_explicit(workspace.path(), &[path], false);
+    assert!(
+        result.file_assignments.contains_key(&LinterId::Html),
+        "expected Html detection, got {:?}",
+        result.file_assignments.keys().collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn detect_explicit_nonexistent_file_is_undetected() {
     let workspace = TempDir::new().unwrap();
     let missing = workspace.path().join("does_not_exist.xyz");
