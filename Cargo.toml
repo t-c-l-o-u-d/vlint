@@ -8,16 +8,16 @@ description = "Lint and format code using native tools or containers"
 repository = "https://github.com/t-c-l-o-u-d/vlint"
 keywords = ["linter", "lint", "code-quality"]
 categories = ["development-tools"]
-rust-version = "1.94.1"
+rust-version = "1.96.0"
 
 [dependencies]
 anyhow = "1.0.102"
-libc = "0.2.184"
+libc = "0.2.186"
 regex = "1.12.3"
 which = "8.0.2"
 ignore = "0.4.25"
-reqwest = { version = "0.13.2", default-features = false, features = ["blocking", "native-tls"] }
-serde_json = "1.0.149"
+reqwest = { version = "0.13.4", default-features = false, features = ["blocking", "native-tls"] }
+serde_json = "1.0.150"
 sha2 = "0.11.0"
 
 [dev-dependencies]
