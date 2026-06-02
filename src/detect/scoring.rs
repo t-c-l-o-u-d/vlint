@@ -29,7 +29,7 @@ impl FileScore {
     #[must_use]
     pub fn summary(&self) -> Vec<(LinterId, u32)> {
         let mut scores: Vec<_> = self.scores.iter().map(|(&id, &s)| (id, s)).collect();
-        scores.sort_by(|a, b| b.1.cmp(&a.1));
+        scores.sort_by_key(|b| std::cmp::Reverse(b.1));
         scores
     }
 
