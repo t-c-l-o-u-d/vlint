@@ -22,7 +22,5 @@
 
 ## References
 
-- [linter-images reference project](reference_linter_images.md) — the
-  bash-based inspiration repo; detection engine spec lives there
 - [vlint-images repository](reference_vlint_images.md) — the container
   image repo at ghcr.io/t-c-l-o-u-d/vlint-images
