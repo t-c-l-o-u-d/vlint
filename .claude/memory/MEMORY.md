@@ -19,6 +19,8 @@
 - [GitHub Actions policy](feedback_github_actions_policy.md) — first-party
   only, SHA-pinned; everything else is a `.github/scripts/` shell script
 - [No pip](feedback_no_pip.md) — apt only, never pip
+- [Commit message convention](feedback_commit_messages.md) — terse
+  single-line lowercase subjects describing the change; no big bodies
 
 ## References
 
