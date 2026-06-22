@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+use std::fmt::Write as _;
+
 use crate::backend::Backend;
 use crate::catalog::linter::OwnedToolDef;
 use crate::color;
@@ -11,15 +13,23 @@ use crate::runner::{FileStatus, LintOutput, RunStatus, ToolRun};
 /// command line and resolved config. Single-file mode shows the tool's own output.
 #[must_use]
 pub fn print_results(output: &LintOutput, verbose: bool) -> u8 {
-    if output.single_file {
-        print_single_file(output, verbose);
-    } else if verbose {
-        print_directory_verbose(output);
-    } else {
-        print_directory_regular(output);
-    }
-
+    print!("{}", render(output, verbose));
     exit_code(output)
+}
+
+/// Render the results block (failures, or per-file detail in verbose) as a string, without the
+/// trailing failure hint. Exposed so tests can assert on the exact rendered output.
+#[must_use]
+pub fn render(output: &LintOutput, verbose: bool) -> String {
+    let mut out = String::new();
+    if output.single_file {
+        render_single_file(&mut out, output, verbose);
+    } else if verbose {
+        render_directory_verbose(&mut out, output);
+    } else {
+        render_directory_regular(&mut out, output);
+    }
+    out
 }
 
 fn exit_code(output: &LintOutput) -> u8 {
@@ -34,125 +44,132 @@ fn exit_code(output: &LintOutput) -> u8 {
     code
 }
 
-fn print_directory_regular(output: &LintOutput) {
+fn render_directory_regular(out: &mut String, output: &LintOutput) {
     for tool in &output.results {
         match tool.status {
             RunStatus::Pass => {}
             RunStatus::Error => {
-                println!("{}", color::tool(&tool.tool_name));
-                println!("  {}", error_detail(tool));
+                writeln!(out, "{}", color::tool(&tool.tool_name)).unwrap();
+                writeln!(out, "  {}", error_detail(tool)).unwrap();
             }
             RunStatus::Fail => {
-                println!("{}", color::tool(&tool.tool_name));
+                writeln!(out, "{}", color::tool(&tool.tool_name)).unwrap();
                 if tool.pass_files && tool.attributed {
                     for f in &tool.files {
                         if f.status == FileStatus::Fail {
-                            println!("  {}: {}", color::fail("FAIL"), f.path.display());
+                            writeln!(out, "  {}: {}", color::fail("FAIL"), f.path.display())
+                                .unwrap();
                         }
                     }
                 } else {
                     // Whole-project tool, or a failure not attributable to one file.
-                    println!("  {}", color::fail("FAIL"));
+                    writeln!(out, "  {}", color::fail("FAIL")).unwrap();
                 }
             }
         }
     }
 }
 
-fn print_directory_verbose(output: &LintOutput) {
+fn render_directory_verbose(out: &mut String, output: &LintOutput) {
     for tool in &output.results {
-        print_verbose_header(tool);
+        render_verbose_header(out, tool);
         match tool.status {
-            RunStatus::Error => println!("  {}", error_detail(tool)),
+            RunStatus::Error => writeln!(out, "  {}", error_detail(tool)).unwrap(),
             RunStatus::Fail if !tool.attributed => {
-                println!(
+                // Aggregate-only failure (e.g. mypy duplicate-module): no single file is to blame,
+                // and re-running any file on its own would pass -- so single-file mode cannot
+                // surface the cause. The batch output is shown here because this is the only place
+                // the user can see why the tool failed.
+                writeln!(
+                    out,
                     "  {} (not attributable to a single file)",
                     color::fail("FAIL")
-                );
+                )
+                .unwrap();
                 let cols = terminal_columns();
-                print_indented(&tool.batch_stdout, "  ", cols);
-                print_indented(&tool.batch_stderr, "  ", cols);
+                append_indented(out, &tool.batch_stdout, "  ", cols);
+                append_indented(out, &tool.batch_stderr, "  ", cols);
             }
             _ => {
                 for f in &tool.files {
-                    println!("  {}: {}", file_label(f.status), f.path.display());
+                    writeln!(out, "  {}: {}", file_label(f.status), f.path.display()).unwrap();
                 }
             }
         }
     }
 }
 
-fn print_single_file(output: &LintOutput, verbose: bool) {
+fn render_single_file(out: &mut String, output: &LintOutput, verbose: bool) {
     for tool in &output.results {
         if verbose {
-            print_verbose_header(tool);
+            render_verbose_header(out, tool);
         } else {
-            println!("{}", color::tool(&tool.tool_name));
+            writeln!(out, "{}", color::tool(&tool.tool_name)).unwrap();
         }
         let cols = terminal_columns();
-        match tool.status {
-            RunStatus::Error => {
-                print_indented(&tool.batch_stderr, "  ", cols);
-                println!("  {}", color::error("ERROR"));
-            }
-            RunStatus::Pass => {
-                print_indented(&tool.batch_stdout, "  ", cols);
-                print_indented(&tool.batch_stderr, "  ", cols);
-                println!("  {}", color::pass("PASS"));
-            }
-            RunStatus::Fail => {
-                print_indented(&tool.batch_stdout, "  ", cols);
-                print_indented(&tool.batch_stderr, "  ", cols);
-                println!("  {}", color::fail("FAIL"));
-            }
-        }
+        // Show the tool's own output for every outcome -- including ERROR, whose diagnostic may be
+        // on stdout (e.g. a config-parse error) rather than stderr.
+        append_indented(out, &tool.batch_stdout, "  ", cols);
+        append_indented(out, &tool.batch_stderr, "  ", cols);
+        let label = match tool.status {
+            RunStatus::Error => color::error("ERROR"),
+            RunStatus::Pass => color::pass("PASS"),
+            RunStatus::Fail => color::fail("FAIL"),
+        };
+        writeln!(out, "  {label}").unwrap();
     }
 }
 
 /// Verbose per-tool header: the tool name, its `cli:` line, and the resolved `config:` line.
-fn print_verbose_header(tool: &ToolRun) {
-    println!("{}", color::tool(&tool.tool_name));
-    println!("  cli: {}", tool.cli);
+fn render_verbose_header(out: &mut String, tool: &ToolRun) {
+    writeln!(out, "{}", color::tool(&tool.tool_name)).unwrap();
+    writeln!(out, "  cli: {}", tool.cli).unwrap();
     if let Some(cfg) = &tool.config {
         let suffix = if cfg.is_default {
             " (vlint default)"
         } else {
             ""
         };
-        println!("  config: {}{suffix}", abbreviate(&cfg.path));
+        writeln!(out, "  config: {}{suffix}", abbreviate(&cfg.path)).unwrap();
     }
 }
 
-/// List linters that were skipped (no tools, or no format support). Shown only under `--debug`.
-pub fn print_skipped(output: &LintOutput) {
+/// Render the linters that were skipped (no tools, or no format support). Shown only under `--debug`.
+#[must_use]
+pub fn render_skipped(output: &LintOutput) -> String {
     let mut skipped: Vec<_> = output.skipped.iter().collect();
     skipped.sort_by_key(|s| format!("{}", s.linter_id));
+    let mut out = String::new();
     for s in &skipped {
-        println!(
+        writeln!(
+            out,
             "{}: {} ({} file(s))",
             color::skip("SKIPPED"),
             s.linter_id,
             s.files.len()
-        );
+        )
+        .unwrap();
         for f in &s.files {
-            println!("  - {}", f.display());
+            writeln!(out, "  - {}", f.display()).unwrap();
         }
     }
+    out
 }
 
-/// Point the user at single-file mode to see why a file failed, since directory modes
-/// only report which files failed, not the tool's error output.
-/// Tell the user how to see more detail about failures. Call once, after the final pass
-/// (in `format = apply` that is the lint pass), so it is not printed per pass.
-pub fn print_failure_hint(output: &LintOutput, verbose: bool) {
+/// The hint that tells the user how to see more detail about failures, or an empty string when none
+/// is warranted. Suppressed in single-file mode (the tool's own output is already shown) and when
+/// nothing failed. Call once, after the final pass (in `format = apply` that is the lint pass), so
+/// it is not emitted per pass.
+#[must_use]
+pub fn render_failure_hint(output: &LintOutput, verbose: bool) -> String {
     let has_failure = output.results.iter().any(|t| t.status == RunStatus::Fail);
     if output.single_file || !has_failure {
-        return;
+        return String::new();
     }
     if verbose {
-        println!("\nRun `vlint <filename>` to see more detail.");
+        "\nRun `vlint <filename>` to see more detail.\n".to_string()
     } else {
-        println!("\nRun `vlint <filename>` or `vlint -v` to see more detail.");
+        "\nRun `vlint <filename>` or `vlint -v` to see more detail.\n".to_string()
     }
 }
 
@@ -174,10 +191,16 @@ fn error_detail(tool: &ToolRun) -> String {
     }
 }
 
+/// Abbreviate a leading `$HOME` to `~`, but only on a path-component boundary so a sibling
+/// directory that merely shares the prefix (e.g. `/home/userdata` under `HOME=/home/user`) is
+/// left untouched.
 fn abbreviate(path: &str) -> String {
     let home = std::env::var("HOME").unwrap_or_default();
-    if !home.is_empty() && path.starts_with(&home) {
-        path.replacen(&home, "~", 1)
+    let home = home.trim_end_matches('/');
+    if !home.is_empty()
+        && (path == home || path.strip_prefix(home).is_some_and(|r| r.starts_with('/')))
+    {
+        path.replacen(home, "~", 1)
     } else {
         path.to_string()
     }
@@ -188,6 +211,7 @@ fn terminal_columns() -> Option<usize> {
     if !std::io::stdout().is_terminal() {
         return None;
     }
+    // SAFETY: `ws` is zeroed before the ioctl, and `ws_col` is read only after the call returns 0.
     unsafe {
         let mut ws: libc::winsize = std::mem::zeroed();
         if libc::ioctl(libc::STDOUT_FILENO, libc::TIOCGWINSZ, &mut ws) == 0 && ws.ws_col > 0 {
@@ -198,12 +222,12 @@ fn terminal_columns() -> Option<usize> {
     }
 }
 
-fn print_indented(text: &str, indent: &str, max_cols: Option<usize>) {
+fn append_indented(out: &mut String, text: &str, indent: &str, max_cols: Option<usize>) {
     let continuation = format!("{indent}  ");
     for line in text.lines() {
         let fits = max_cols.is_none_or(|cols| indent.len() + line.len() <= cols);
         if fits {
-            println!("{indent}{line}");
+            writeln!(out, "{indent}{line}").unwrap();
             continue;
         }
         let avail = max_cols.unwrap().saturating_sub(indent.len());
@@ -223,7 +247,7 @@ fn print_indented(text: &str, indent: &str, max_cols: Option<usize>) {
             } else {
                 cur_avail
             };
-            println!("{cur_indent}{}", rest[..take].trim_end());
+            writeln!(out, "{cur_indent}{}", rest[..take].trim_end()).unwrap();
             rest = rest[take..].trim_start_matches(' ');
             first = false;
         }

@@ -234,7 +234,7 @@ fn detect_explicit_html_file_is_html() {
 }
 
 #[test]
-fn detect_explicit_nonexistent_file_is_undetected() {
+fn detect_explicit_nonexistent_file_is_not_assigned() {
     let workspace = TempDir::new().unwrap();
     let missing = workspace.path().join("does_not_exist.xyz");
     let result = detect::detect_explicit(workspace.path(), &[missing], false);

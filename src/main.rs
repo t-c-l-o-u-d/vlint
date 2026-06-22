@@ -108,9 +108,9 @@ fn filter_backend_chain(chain: &mut Vec<Box<dyn backend::Backend>>, name: &str) 
 fn report(out: &runner::LintOutput, verbose: bool, debug: bool) -> u8 {
     let code = output::print_results(out, verbose);
     if debug {
-        output::print_skipped(out);
+        print!("{}", output::render_skipped(out));
     }
-    output::print_failure_hint(out, verbose);
+    print!("{}", output::render_failure_hint(out, verbose));
     code
 }
 
