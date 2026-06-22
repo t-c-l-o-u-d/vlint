@@ -27,7 +27,8 @@ List all tools and how each resolves through the backend chain.
 .TP
 .BR \-v ", " \-\-verbose
 Verbose output: each tool's command line, resolved config file, and a
-PASS or FAIL line for every file.
+PASS, FAIL, or ERROR line for every file (or a single line when a failure
+cannot be attributed to one file).
 .TP
 .BR \-d ", " \-\-debug
 Debug output: per-file detection ranking and skipped linters. Intentionally
@@ -58,11 +59,12 @@ By default vlint reports only failures, grouped under each tool, and prints
 nothing when everything passes.
 Run vlint on a failing file, or with \fB\-v\fR, to see more detail.
 When linting a single file it prints the tool name followed by the tool's
-own output and a PASS or FAIL line.
+own output and a PASS, FAIL, or ERROR line.
 With
 .B \-v
 it prints, for every tool, the resolved command line, the config file in
-use, and a PASS or FAIL line for each file.
+use, and a PASS, FAIL, or ERROR line for each file (or a single line when a
+failure cannot be attributed to one file).
 .SH SEE ALSO
 .BR vlint (5)
 "#;

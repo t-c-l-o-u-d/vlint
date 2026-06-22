@@ -3,8 +3,10 @@
 use std::path::PathBuf;
 
 use vlint::catalog::linter::LinterId;
-use vlint::output::print_results;
-use vlint::runner::{FileOutcome, FileStatus, LintOutput, RunStatus, SkippedLinter, ToolRun};
+use vlint::output::{print_results, render, render_failure_hint};
+use vlint::runner::{
+    ConfigRef, FileOutcome, FileStatus, LintOutput, RunStatus, SkippedLinter, ToolRun,
+};
 
 fn tool_run(name: &str, status: RunStatus) -> ToolRun {
     let file_status = match status {
@@ -160,4 +162,250 @@ fn whole_project_tool_fail_returns_one() {
     };
     let out = output(vec![tool], vec![]);
     assert_eq!(print_results(&out, false), 1);
+}
+
+// --- Rendered-output contract ---
+//
+// Assertions compare against color-stripped output, so they hold regardless of the process-global
+// color state (whether or not any test, now or later, enables color). The expected strings are
+// always plain text.
+
+/// Remove ANSI SGR escape sequences (ESC `[` ... `m`) that `color::*` may wrap labels in, so
+/// rendered output can be compared as plain text.
+fn strip_ansi(s: &str) -> String {
+    let mut out = String::new();
+    let mut chars = s.chars();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            for c2 in chars.by_ref() {
+                if c2 == 'm' {
+                    break;
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// `render` with color stripped, for deterministic text assertions.
+fn rendered(output: &LintOutput, verbose: bool) -> String {
+    strip_ansi(&render(output, verbose))
+}
+
+fn outcome(path: &str, status: FileStatus) -> FileOutcome {
+    FileOutcome {
+        path: PathBuf::from(path),
+        status,
+    }
+}
+
+/// A directory-mode tool run with the given attribution and per-file outcomes.
+fn dir_run(
+    name: &str,
+    status: RunStatus,
+    pass_files: bool,
+    attributed: bool,
+    files: Vec<FileOutcome>,
+) -> ToolRun {
+    ToolRun {
+        tool_name: name.to_string(),
+        status,
+        pass_files,
+        cli: name.to_string(),
+        config: None,
+        batch_stdout: String::new(),
+        batch_stderr: String::new(),
+        attributed,
+        files,
+    }
+}
+
+fn single_file_output(results: Vec<ToolRun>) -> LintOutput {
+    LintOutput {
+        results,
+        skipped: vec![],
+        single_file: true,
+    }
+}
+
+#[test]
+fn regular_all_pass_renders_nothing() {
+    let out = output(vec![passing_tool("ruff-check")], vec![]);
+    assert_eq!(rendered(&out, false), "");
+}
+
+#[test]
+fn regular_lists_only_failing_files_with_no_tool_suffix() {
+    let tool = dir_run(
+        "ruff-check",
+        RunStatus::Fail,
+        true,
+        true,
+        vec![
+            outcome("a.py", FileStatus::Pass),
+            outcome("b.py", FileStatus::Fail),
+        ],
+    );
+    // Tool header, then only the failing file -- a.py is omitted and there is no "(ruff-check)".
+    assert_eq!(
+        rendered(&output(vec![tool], vec![]), false),
+        "ruff-check\n  FAIL: b.py\n"
+    );
+}
+
+#[test]
+fn regular_non_attributable_failure_is_a_bare_fail() {
+    let tool = dir_run(
+        "mypy",
+        RunStatus::Fail,
+        true,
+        false, // batch failed but every file passed on its own
+        vec![
+            outcome("a.py", FileStatus::Pass),
+            outcome("b.py", FileStatus::Pass),
+        ],
+    );
+    assert_eq!(
+        rendered(&output(vec![tool], vec![]), false),
+        "mypy\n  FAIL\n"
+    );
+}
+
+#[test]
+fn regular_whole_project_failure_is_a_bare_fail() {
+    let tool = dir_run(
+        "cargo-clippy",
+        RunStatus::Fail,
+        false, // whole-project tool
+        true,
+        vec![outcome("src/main.rs", FileStatus::Fail)],
+    );
+    assert_eq!(
+        rendered(&output(vec![tool], vec![]), false),
+        "cargo-clippy\n  FAIL\n"
+    );
+}
+
+#[test]
+fn regular_error_renders_tool_and_message() {
+    let tool = ToolRun {
+        batch_stderr: "no backend available".to_string(),
+        ..dir_run(
+            "golangci-lint",
+            RunStatus::Error,
+            false,
+            true,
+            vec![outcome("main.go", FileStatus::Error)],
+        )
+    };
+    assert_eq!(
+        rendered(&output(vec![tool], vec![]), false),
+        "golangci-lint\n  ERROR: no backend available\n"
+    );
+}
+
+#[test]
+fn verbose_renders_cli_config_and_per_file_status() {
+    let tool = ToolRun {
+        cli: "ruff check".to_string(),
+        // Absolute /etc path so abbreviate() is a no-op regardless of $HOME.
+        config: Some(ConfigRef {
+            path: "/etc/ruff.toml".to_string(),
+            is_default: true,
+        }),
+        ..dir_run(
+            "ruff-check",
+            RunStatus::Fail,
+            true,
+            true,
+            vec![
+                outcome("a.py", FileStatus::Pass),
+                outcome("b.py", FileStatus::Fail),
+            ],
+        )
+    };
+    assert_eq!(
+        rendered(&output(vec![tool], vec![]), true),
+        "ruff-check\n  cli: ruff check\n  config: /etc/ruff.toml (vlint default)\n  PASS: a.py\n  FAIL: b.py\n"
+    );
+}
+
+#[test]
+fn verbose_non_attributable_failure_shows_batch_output() {
+    let tool = ToolRun {
+        cli: "mypy".to_string(),
+        batch_stdout: "error: Duplicate module named 'x'".to_string(),
+        ..dir_run(
+            "mypy",
+            RunStatus::Fail,
+            true,
+            false,
+            vec![
+                outcome("a.py", FileStatus::Pass),
+                outcome("b.py", FileStatus::Pass),
+            ],
+        )
+    };
+    assert_eq!(
+        rendered(&output(vec![tool], vec![]), true),
+        "mypy\n  cli: mypy\n  FAIL (not attributable to a single file)\n  error: Duplicate module named 'x'\n"
+    );
+}
+
+#[test]
+fn single_file_error_shows_stdout_and_stderr() {
+    // Regression guard: a tool that exits 2 with its diagnostic on stdout must not lose it.
+    let tool = ToolRun {
+        batch_stdout: "stdout diagnostic".to_string(),
+        batch_stderr: "stderr note".to_string(),
+        ..dir_run(
+            "ruff",
+            RunStatus::Error,
+            true,
+            true,
+            vec![outcome("a.py", FileStatus::Error)],
+        )
+    };
+    assert_eq!(
+        rendered(&single_file_output(vec![tool]), false),
+        "ruff\n  stdout diagnostic\n  stderr note\n  ERROR\n"
+    );
+}
+
+#[test]
+fn single_file_pass_shows_tool_then_pass() {
+    let tool = dir_run(
+        "ruff-format",
+        RunStatus::Pass,
+        true,
+        true,
+        vec![outcome("a.py", FileStatus::Pass)],
+    );
+    assert_eq!(
+        rendered(&single_file_output(vec![tool]), false),
+        "ruff-format\n  PASS\n"
+    );
+}
+
+#[test]
+fn failure_hint_text_varies_by_mode_and_is_suppressed_when_clean() {
+    let failing = output(vec![failing_tool("ruff-check")], vec![]);
+    assert_eq!(
+        render_failure_hint(&failing, false),
+        "\nRun `vlint <filename>` or `vlint -v` to see more detail.\n"
+    );
+    assert_eq!(
+        render_failure_hint(&failing, true),
+        "\nRun `vlint <filename>` to see more detail.\n"
+    );
+
+    // No failure -> no hint.
+    let clean = output(vec![passing_tool("ruff-check")], vec![]);
+    assert_eq!(render_failure_hint(&clean, false), "");
+
+    // Single-file mode already shows the tool output, so the hint is suppressed.
+    let single = single_file_output(vec![failing_tool("ruff-check")]);
+    assert_eq!(render_failure_hint(&single, false), "");
 }
