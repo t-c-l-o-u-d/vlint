@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::backend::Backend;
 use crate::catalog::linter::{DetectionResult, OwnedToolDef};
-use crate::runner::{LintOutput, Mode, run_linters};
+use crate::runner::{Invocation, LintOutput, Mode, run_linters};
 
 #[must_use]
 pub fn lint(
@@ -12,7 +12,7 @@ pub fn lint(
     chain: &[Box<dyn Backend>],
     tools: &[OwnedToolDef],
     workspace: &Path,
-    verbose: bool,
+    invocation: Invocation,
 ) -> LintOutput {
-    run_linters(detection, chain, tools, workspace, Mode::Lint, verbose)
+    run_linters(detection, chain, tools, workspace, Mode::Lint, invocation)
 }

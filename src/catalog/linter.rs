@@ -159,7 +159,6 @@ impl From<&ToolDef> for OwnedToolDef {
 }
 
 pub struct ToolResult {
-    pub tool_name: String,
     pub success: bool,
     pub stdout: String,
     pub stderr: String,
@@ -168,5 +167,4 @@ pub struct ToolResult {
 
 pub struct DetectionResult {
     pub file_assignments: std::collections::HashMap<LinterId, Vec<PathBuf>>,
-    pub undetected: Vec<PathBuf>,
 }

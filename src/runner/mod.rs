@@ -3,17 +3,61 @@
 pub mod format;
 pub mod lint;
 
+#[cfg(test)]
+mod exec_tests;
+
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
 use crate::backend::{self, Backend};
 use crate::catalog::linter::{DetectionResult, LinterId, OwnedToolDef, ToolResult};
-use crate::color;
-use crate::config::resolve::{ResolvedConfig, resolve_config};
+use crate::config::resolve::resolve_config;
 
-pub struct RunResult {
-    pub linter_id: LinterId,
-    pub tool_results: Vec<ToolResult>,
+/// Per-file lint/format outcome.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum FileStatus {
+    Pass,
+    Fail,
+    Error,
+}
+
+#[derive(Clone)]
+pub struct FileOutcome {
+    pub path: PathBuf,
+    pub status: FileStatus,
+}
+
+/// Tool-level rollup status.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum RunStatus {
+    Pass,
+    Fail,
+    Error,
+}
+
+/// The config file vlint resolved for a tool (its own, or vlint's bundled default).
+#[derive(Clone)]
+pub struct ConfigRef {
+    pub path: String,
+    pub is_default: bool,
+}
+
+/// The result of running one tool, with per-file attribution.
+pub struct ToolRun {
+    pub tool_name: String,
+    pub status: RunStatus,
+    /// Whether the tool runs per file (`pass_files`); whole-project tools share one result.
+    pub pass_files: bool,
+    /// Logical command line for verbose output: no backend wrapper, no config flag, no file paths.
+    pub cli: String,
+    /// The resolved config file, if the tool uses one.
+    pub config: Option<ConfigRef>,
+    /// Output from the batch run, used for single-file display and error messages.
+    pub batch_stdout: String,
+    pub batch_stderr: String,
+    /// False when the batch failed but every per-file re-run passed (not attributable).
+    pub attributed: bool,
+    pub files: Vec<FileOutcome>,
 }
 
 pub struct SkippedLinter {
@@ -22,8 +66,9 @@ pub struct SkippedLinter {
 }
 
 pub struct LintOutput {
-    pub results: Vec<RunResult>,
+    pub results: Vec<ToolRun>,
     pub skipped: Vec<SkippedLinter>,
+    pub single_file: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -33,6 +78,13 @@ pub enum Mode {
     Format,
 }
 
+/// Whether vlint was invoked on exactly one file (vs a directory or multiple files).
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Invocation {
+    SingleFile,
+    Directory,
+}
+
 #[must_use]
 pub fn run_linters(
     detection: &DetectionResult,
@@ -40,7 +92,7 @@ pub fn run_linters(
     tools: &[OwnedToolDef],
     workspace: &Path,
     mode: Mode,
-    verbose: bool,
+    invocation: Invocation,
 ) -> LintOutput {
     let mut results = Vec::new();
     let mut skipped = Vec::new();
@@ -58,11 +110,6 @@ pub fn run_linters(
         linter_tools.sort_by_key(|t| t.name.as_str());
 
         if linter_tools.is_empty() {
-            println!(
-                "  {}: No tools available for {linter_id} ({} file(s))",
-                color::skip("SKIPPED"),
-                files.len()
-            );
             skipped.push(SkippedLinter {
                 linter_id,
                 files: files.clone(),
@@ -76,13 +123,6 @@ pub fn run_linters(
             Mode::Format => linter_tools.iter().any(|t| t.format_args.is_some()),
         };
         if !has_format_support {
-            let reason = match mode {
-                Mode::FormatPrint if linter_tools.iter().any(|t| t.format_args.is_some()) => {
-                    "no format:check support; use format = apply"
-                }
-                _ => "no format support",
-            };
-            println!("  {}: {linter_id} ({reason})", color::skip("SKIPPED"));
             skipped.push(SkippedLinter {
                 linter_id,
                 files: files.clone(),
@@ -90,20 +130,18 @@ pub fn run_linters(
             continue;
         }
 
-        let mut tool_results = Vec::new();
         for tool in linter_tools {
-            if let Some(result) = run_tool(tool, chain, files, workspace, mode, verbose) {
-                tool_results.push(result);
+            if let Some(run) = run_tool(tool, chain, files, workspace, mode) {
+                results.push(run);
             }
         }
-
-        results.push(RunResult {
-            linter_id,
-            tool_results,
-        });
     }
 
-    LintOutput { results, skipped }
+    LintOutput {
+        results,
+        skipped,
+        single_file: matches!(invocation, Invocation::SingleFile),
+    }
 }
 
 fn run_tool(
@@ -112,90 +150,232 @@ fn run_tool(
     files: &[PathBuf],
     workspace: &Path,
     mode: Mode,
-    verbose: bool,
-) -> Option<ToolResult> {
+) -> Option<ToolRun> {
     let args: &[String] = match mode {
         Mode::Lint => &tool.lint_args,
         Mode::FormatPrint => tool.format_print_args.as_deref()?,
         Mode::Format => tool.format_args.as_deref()?,
     };
 
-    let Some(backend) = backend::resolve_tool(tool, chain) else {
-        println!("  {}: no backend available", tool.name);
-        return Some(ToolResult {
-            tool_name: tool.name.clone(),
-            success: false,
-            stdout: String::new(),
-            stderr: "no backend available".to_string(),
-            exit_code: 2,
-        });
-    };
-
     let resolved = tool
         .config_precedence
         .as_ref()
         .and_then(|prec| resolve_config(prec, workspace));
+    let config_path_str = resolved.as_ref().map(|r| r.path.as_str());
+    let config = resolved.as_ref().map(|r| ConfigRef {
+        path: r.path.clone(),
+        is_default: r.is_default,
+    });
 
-    let config_path = resolved
-        .as_ref()
-        .map(|r| std::path::Path::new(r.path.as_str()));
+    // The verbose `cli:` line: tool command without the config flag or file paths.
+    let cli = render_cli(tool, args);
 
-    let mut final_args = build_args(tool, args, resolved.as_ref().map(|r| r.path.as_str()));
+    let Some(backend) = backend::resolve_tool(tool, chain) else {
+        return Some(error_run(tool, files, cli, config, "no backend available"));
+    };
+
+    let config_path = config_path_str.map(Path::new);
+    // Args used for the actual run include the injected config flag.
+    let base_args = build_args(tool, args, config_path_str);
+
+    // Format mode: capture per-file hashes so a rewritten file can be flagged. Hash the file at
+    // its real location (workspace-relative paths are resolved against the workspace, not vlint's
+    // cwd, which is where the tool actually reads/writes it).
+    let pre_hashes: Vec<u64> = if matches!(mode, Mode::Format) {
+        files.iter().map(|f| hash_one(&workspace.join(f))).collect()
+    } else {
+        Vec::new()
+    };
+
+    // Run the whole batch once.
+    let mut batch_args = base_args.clone();
     if tool.pass_files {
         for f in files {
-            if let Ok(rel) = f.strip_prefix(workspace) {
-                final_args.push(rel.to_string_lossy().into_owned());
-            } else {
-                final_args.push(f.to_string_lossy().into_owned());
-            }
+            batch_args.push(rel_path(f, workspace));
         }
     }
-    let arg_refs: Vec<&str> = final_args.iter().map(String::as_str).collect();
+    let batch_refs: Vec<&str> = batch_args.iter().map(String::as_str).collect();
 
-    let tool_name = color::tool(&tool.name);
-    let running_line = if verbose {
-        format!(
-            "  Running {}...",
-            verbose_tag(&tool_name, &backend.kind().to_string(), resolved.as_ref())
-        )
-    } else {
-        format!("  Running {tool_name}...")
-    };
-    println!("{running_line}");
-
-    let pre_hash = if matches!(mode, Mode::Format) {
-        Some(hash_files(files))
-    } else {
-        None
+    let result = match backend.run(tool, &batch_refs, workspace, config_path) {
+        Ok(r) => r,
+        Err(e) => return Some(error_run(tool, files, cli, config, &e.to_string())),
     };
 
-    match backend.run(tool, &arg_refs, workspace, config_path) {
-        Ok(mut result) => {
-            if let Some(pre) = pre_hash
-                && result.success
-                && hash_files(files) != pre
-            {
-                result.success = false;
-            }
-            let status = if result.success {
-                color::pass("PASS")
-            } else {
-                color::fail("FAIL")
+    // Format mode: which files the run rewrote (they were not already formatted).
+    let changed: Vec<bool> = pre_hashes
+        .iter()
+        .zip(files)
+        .map(|(&pre, f)| hash_one(&workspace.join(f)) != pre)
+        .collect();
+
+    // A tool that exits 2 reported a tool execution error, not lint findings.
+    if result.exit_code == 2 {
+        return Some(make_run(
+            tool,
+            RunStatus::Error,
+            cli,
+            config,
+            result,
+            true,
+            outcomes(files, FileStatus::Error),
+        ));
+    }
+
+    // In apply mode a formatter fails a file only by rewriting it (it was unformatted); a
+    // non-zero exit that changed nothing is a lint finding, left to the lint pass to report.
+    let batch_success = if matches!(mode, Mode::Format) {
+        changed.iter().all(|&c| !c)
+    } else {
+        result.success
+    };
+    if batch_success {
+        return Some(make_run(
+            tool,
+            RunStatus::Pass,
+            cli,
+            config,
+            result,
+            true,
+            outcomes(files, FileStatus::Pass),
+        ));
+    }
+
+    // Batch failed: attribute to individual files.
+    let file_outcomes: Vec<FileOutcome> = if matches!(mode, Mode::Format) {
+        format_outcomes(files, &changed)
+    } else if tool.pass_files && files.len() > 1 {
+        isolate_per_file(tool, backend, &base_args, config_path, files, workspace)
+    } else {
+        // Whole-project tool, or a single file: the result applies to every matched file.
+        outcomes(files, FileStatus::Fail)
+    };
+
+    let status = if file_outcomes.iter().any(|o| o.status == FileStatus::Error) {
+        RunStatus::Error
+    } else {
+        RunStatus::Fail
+    };
+    // Not attributable when the batch failed but every per-file re-run passed.
+    let attributed = file_outcomes.iter().any(|o| o.status != FileStatus::Pass);
+    Some(make_run(
+        tool,
+        status,
+        cli,
+        config,
+        result,
+        attributed,
+        file_outcomes,
+    ))
+}
+
+fn make_run(
+    tool: &OwnedToolDef,
+    status: RunStatus,
+    cli: String,
+    config: Option<ConfigRef>,
+    result: ToolResult,
+    attributed: bool,
+    files: Vec<FileOutcome>,
+) -> ToolRun {
+    ToolRun {
+        tool_name: tool.name.clone(),
+        status,
+        pass_files: tool.pass_files,
+        cli,
+        config,
+        batch_stdout: result.stdout,
+        batch_stderr: result.stderr,
+        attributed,
+        files,
+    }
+}
+
+fn isolate_per_file(
+    tool: &OwnedToolDef,
+    backend: &dyn Backend,
+    base_args: &[String],
+    config_path: Option<&Path>,
+    files: &[PathBuf],
+    workspace: &Path,
+) -> Vec<FileOutcome> {
+    files
+        .iter()
+        .map(|f| {
+            let mut a = base_args.to_vec();
+            a.push(rel_path(f, workspace));
+            let refs: Vec<&str> = a.iter().map(String::as_str).collect();
+            let status = match backend.run(tool, &refs, workspace, config_path) {
+                Ok(r) if r.success => FileStatus::Pass,
+                Ok(r) if r.exit_code == 2 => FileStatus::Error,
+                Ok(_) => FileStatus::Fail,
+                Err(_) => FileStatus::Error,
             };
-            print_tool_output(&result, verbose);
-            println!("  {status}: {tool_name}");
-            Some(result)
-        }
-        Err(e) => {
-            println!("  {}: {tool_name}: {e}", color::error("ERROR"));
-            Some(ToolResult {
-                tool_name: tool.name.clone(),
-                success: false,
-                stdout: String::new(),
-                stderr: e.to_string(),
-                exit_code: 2,
-            })
-        }
+            FileOutcome {
+                path: f.clone(),
+                status,
+            }
+        })
+        .collect()
+}
+
+fn render_cli(tool: &OwnedToolDef, args: &[String]) -> String {
+    let parts = build_args(tool, args, None);
+    if parts.is_empty() {
+        tool.binary_name.clone()
+    } else {
+        format!("{} {}", tool.binary_name, parts.join(" "))
+    }
+}
+
+fn format_outcomes(files: &[PathBuf], changed: &[bool]) -> Vec<FileOutcome> {
+    files
+        .iter()
+        .zip(changed)
+        .map(|(f, &ch)| FileOutcome {
+            path: f.clone(),
+            status: if ch {
+                FileStatus::Fail
+            } else {
+                FileStatus::Pass
+            },
+        })
+        .collect()
+}
+
+fn outcomes(files: &[PathBuf], status: FileStatus) -> Vec<FileOutcome> {
+    files
+        .iter()
+        .map(|f| FileOutcome {
+            path: f.clone(),
+            status,
+        })
+        .collect()
+}
+
+fn error_run(
+    tool: &OwnedToolDef,
+    files: &[PathBuf],
+    cli: String,
+    config: Option<ConfigRef>,
+    message: &str,
+) -> ToolRun {
+    ToolRun {
+        tool_name: tool.name.clone(),
+        status: RunStatus::Error,
+        pass_files: tool.pass_files,
+        cli,
+        config,
+        batch_stdout: String::new(),
+        batch_stderr: message.to_string(),
+        attributed: true,
+        files: outcomes(files, FileStatus::Error),
+    }
+}
+
+fn rel_path(file: &Path, workspace: &Path) -> String {
+    match file.strip_prefix(workspace) {
+        Ok(rel) => rel.to_string_lossy().into_owned(),
+        Err(_) => file.to_string_lossy().into_owned(),
     }
 }
 
@@ -210,84 +390,10 @@ pub fn build_args(tool: &OwnedToolDef, flags: &[String], config_path: Option<&st
     out
 }
 
-fn hash_files(files: &[PathBuf]) -> u64 {
+fn hash_one(path: &Path) -> u64 {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    for f in files {
-        if let Ok(content) = std::fs::read(f) {
-            content.hash(&mut hasher);
-        }
+    if let Ok(content) = std::fs::read(path) {
+        content.hash(&mut hasher);
     }
     hasher.finish()
-}
-
-fn verbose_tag(name: &str, backend: &str, resolved: Option<&ResolvedConfig>) -> String {
-    let home = std::env::var("HOME").unwrap_or_default();
-    let config_str = resolved.map(|r| {
-        if r.is_default {
-            "vlint default".to_string()
-        } else if !home.is_empty() && r.path.starts_with(&home) {
-            r.path.replacen(&home, "~", 1)
-        } else {
-            r.path.clone()
-        }
-    });
-    match config_str {
-        Some(c) => format!("{name} [{backend}, {c}]"),
-        None => format!("{name} [{backend}]"),
-    }
-}
-
-fn terminal_columns() -> Option<usize> {
-    use std::io::IsTerminal;
-    if !std::io::stdout().is_terminal() {
-        return None;
-    }
-    unsafe {
-        let mut ws: libc::winsize = std::mem::zeroed();
-        if libc::ioctl(libc::STDOUT_FILENO, libc::TIOCGWINSZ, &mut ws) == 0 && ws.ws_col > 0 {
-            Some(ws.ws_col as usize)
-        } else {
-            None
-        }
-    }
-}
-
-fn print_indented(text: &str, indent: &str, max_cols: Option<usize>) {
-    let continuation = format!("{indent}  ");
-    for line in text.lines() {
-        let fits = max_cols.is_none_or(|cols| indent.len() + line.len() <= cols);
-        if fits {
-            println!("{indent}{line}");
-            continue;
-        }
-        let avail = max_cols.unwrap().saturating_sub(indent.len());
-        let cont_avail = max_cols.unwrap().saturating_sub(continuation.len());
-        let mut rest = line;
-        let mut first = true;
-        while !rest.is_empty() {
-            let (cur_indent, cur_avail) = if first {
-                (indent, avail)
-            } else {
-                (continuation.as_str(), cont_avail)
-            };
-            let take = if rest.len() <= cur_avail {
-                rest.len()
-            } else if let Some(pos) = rest[..cur_avail].rfind(' ') {
-                pos + 1
-            } else {
-                cur_avail
-            };
-            println!("{cur_indent}{}", rest[..take].trim_end());
-            rest = rest[take..].trim_start_matches(' ');
-            first = false;
-        }
-    }
-}
-
-fn print_tool_output(result: &ToolResult, verbose: bool) {
-    if verbose || !result.success {
-        let cols = terminal_columns();
-        print_indented(&result.stdout, "    ", cols);
-        print_indented(&result.stderr, "    ", cols);
-    }
 }

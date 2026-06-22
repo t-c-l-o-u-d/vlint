@@ -13,8 +13,23 @@ fn defaults_when_empty() {
     let a = parse(&[]);
     assert!(a.subcommand.is_none());
     assert!(!a.verbose);
+    assert!(!a.debug);
     assert!(a.config.is_none());
     assert!(a.files.is_empty());
+}
+
+#[test]
+fn debug_flag() {
+    assert!(parse(&["-d"]).debug);
+    assert!(parse(&["--debug"]).debug);
+    assert!(!parse(&["-v"]).debug, "verbose does not imply debug");
+}
+
+#[test]
+fn combined_verbose_and_debug() {
+    let a = parse(&["-vd"]);
+    assert!(a.verbose);
+    assert!(a.debug);
 }
 
 #[test]
