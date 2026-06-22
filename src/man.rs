@@ -26,7 +26,13 @@ shellcheck might run natively while golangci-lint falls back to a container.
 List all tools and how each resolves through the backend chain.
 .TP
 .BR \-v ", " \-\-verbose
-Verbose output: detection scoring details and full tool output.
+Verbose output: each tool's command line, resolved config file, and a
+PASS or FAIL line for every file.
+.TP
+.BR \-d ", " \-\-debug
+Debug output: per-file detection ranking and skipped linters. Intentionally
+omitted from
+.BR \-\-help .
 .TP
 \fB\-c\fR \fIFILE\fR, \fB\-\-config\fR=\fIFILE\fR
 Path to a vlint config file.
@@ -47,6 +53,16 @@ One or more tools reported lint errors.
 .TP
 .B 2
 Runtime or tool execution error.
+.SH OUTPUT
+By default vlint reports only failures, grouped under each tool, and prints
+nothing when everything passes.
+Run vlint on a failing file, or with \fB\-v\fR, to see more detail.
+When linting a single file it prints the tool name followed by the tool's
+own output and a PASS or FAIL line.
+With
+.B \-v
+it prints, for every tool, the resolved command line, the config file in
+use, and a PASS or FAIL line for each file.
 .SH SEE ALSO
 .BR vlint (5)
 "#;
@@ -143,7 +159,8 @@ Added in version 0.0.1.
 Configures the format mode. Takes one of "check" or "apply". If set to
 "check", each formatter runs in dry-run mode to show what it would change,
 then vlint exits without linting. If set to "apply", formatter changes are
-written to disk and linting proceeds. Defaults to unset (lint only).
+written to disk silently (never reported, and they do not affect the exit
+code) and then linting proceeds. Defaults to unset (lint only).
 
 Added in version 0.0.1.
 .TP 4

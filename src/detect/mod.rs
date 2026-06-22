@@ -18,7 +18,6 @@ use crate::detect::scoring::FileScore;
 #[must_use]
 pub fn detect_all(workspace: &Path, verbose: bool) -> DetectionResult {
     let mut file_assignments: HashMap<LinterId, Vec<PathBuf>> = HashMap::new();
-    let mut undetected: Vec<PathBuf> = Vec::new();
 
     // Project-level markers (ansible directory/glob detection)
     let project_markers = pattern::match_project_markers(workspace);
@@ -33,18 +32,9 @@ pub fn detect_all(workspace: &Path, verbose: bool) -> DetectionResult {
     }
 
     let files = walk_directory(workspace);
-    classify_files(
-        workspace,
-        &files,
-        verbose,
-        &mut file_assignments,
-        &mut undetected,
-    );
+    classify_files(workspace, &files, verbose, &mut file_assignments);
 
-    DetectionResult {
-        file_assignments,
-        undetected,
-    }
+    DetectionResult { file_assignments }
 }
 
 /// Detect and classify an explicit list of paths. Directories are walked;
@@ -52,7 +42,6 @@ pub fn detect_all(workspace: &Path, verbose: bool) -> DetectionResult {
 #[must_use]
 pub fn detect_explicit(workspace: &Path, paths: &[PathBuf], verbose: bool) -> DetectionResult {
     let mut file_assignments: HashMap<LinterId, Vec<PathBuf>> = HashMap::new();
-    let mut undetected: Vec<PathBuf> = Vec::new();
 
     let mut files: Vec<PathBuf> = Vec::new();
     for path in paths {
@@ -69,18 +58,9 @@ pub fn detect_explicit(workspace: &Path, paths: &[PathBuf], verbose: bool) -> De
     }
     files.sort();
 
-    classify_files(
-        workspace,
-        &files,
-        verbose,
-        &mut file_assignments,
-        &mut undetected,
-    );
+    classify_files(workspace, &files, verbose, &mut file_assignments);
 
-    DetectionResult {
-        file_assignments,
-        undetected,
-    }
+    DetectionResult { file_assignments }
 }
 
 fn classify_files(
@@ -88,7 +68,6 @@ fn classify_files(
     files: &[PathBuf],
     verbose: bool,
     file_assignments: &mut HashMap<LinterId, Vec<PathBuf>>,
-    undetected: &mut Vec<PathBuf>,
 ) {
     for path in files {
         let relative = path.strip_prefix(workspace).unwrap_or(path);
@@ -187,16 +166,13 @@ fn classify_files(
             }
         }
 
-        match winner {
-            Some(LinterId::Skip) | None => {
-                undetected.push(relative.to_path_buf());
-            }
-            Some(linter) => {
-                file_assignments
-                    .entry(linter)
-                    .or_default()
-                    .push(relative.to_path_buf());
-            }
+        if let Some(linter) = winner
+            && linter != LinterId::Skip
+        {
+            file_assignments
+                .entry(linter)
+                .or_default()
+                .push(relative.to_path_buf());
         }
     }
 }

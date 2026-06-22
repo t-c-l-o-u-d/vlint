@@ -241,6 +241,47 @@ fn detect_explicit_nonexistent_file_is_undetected() {
     assert!(result.file_assignments.is_empty());
 }
 
+#[test]
+fn skip_classified_file_is_not_assigned() {
+    // A file that classifies to LinterId::Skip must not appear in file_assignments
+    // (the assignment branch guards `linter != Skip`).
+    let workspace = TempDir::new().unwrap();
+    let copying = workspace.path().join("COPYING");
+    fs::write(&copying, "All rights reserved.\n").unwrap();
+    let result = detect::detect_explicit(workspace.path(), &[copying], false);
+    assert!(
+        result.file_assignments.values().all(|v| v.is_empty()),
+        "Skip-classified file should not be assigned: {:?}",
+        result.file_assignments
+    );
+}
+
+#[test]
+fn unrecognized_file_is_not_assigned() {
+    // A file with no matching rule (winner None) must not be assigned.
+    let workspace = TempDir::new().unwrap();
+    let unknown = workspace.path().join("notes.unknownext");
+    fs::write(&unknown, "free-form text with no language signal\n").unwrap();
+    let result = detect::detect_explicit(workspace.path(), &[unknown], false);
+    assert!(result.file_assignments.values().all(|v| v.is_empty()));
+}
+
+#[test]
+fn mixed_directory_assigns_only_lintable_files() {
+    let workspace = TempDir::new().unwrap();
+    fs::write(workspace.path().join("script.py"), "x = 1\n").unwrap();
+    fs::write(workspace.path().join("COPYING"), "license\n").unwrap();
+    fs::write(workspace.path().join("notes.unknownext"), "blah\n").unwrap();
+    let result = detect::detect_all(workspace.path(), false);
+    let assigned: Vec<_> = result.file_assignments.values().flatten().collect();
+    assert_eq!(
+        assigned.len(),
+        1,
+        "only script.py should be assigned, got {assigned:?}"
+    );
+    assert!(assigned[0].ends_with("script.py"));
+}
+
 // --- content detection ---
 
 #[test]

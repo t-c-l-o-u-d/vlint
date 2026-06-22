@@ -14,7 +14,7 @@ mod update;
 use std::process::ExitCode;
 
 use crate::config::FormatMode;
-use crate::runner::Mode;
+use crate::runner::{Invocation, Mode};
 
 fn init_color(config: &config::Config) {
     let mode = config.color.as_ref().unwrap_or(&color::ColorMode::Auto);
@@ -103,6 +103,17 @@ fn filter_backend_chain(chain: &mut Vec<Box<dyn backend::Backend>>, name: &str) 
     }
 }
 
+/// Print one pass's results: the failures, optionally the skipped linters (`--debug`), and the
+/// failure hint. Returns the exit code from `print_results`.
+fn report(out: &runner::LintOutput, verbose: bool, debug: bool) -> u8 {
+    let code = output::print_results(out, verbose);
+    if debug {
+        output::print_skipped(out);
+    }
+    output::print_failure_hint(out, verbose);
+    code
+}
+
 fn main() -> ExitCode {
     // Exit quietly on SIGPIPE (e.g. `vlint | head`) instead of panicking.
     #[cfg(unix)]
@@ -161,22 +172,21 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    if args.verbose {
-        println!("NOTE: You can lint a single file at a time: `vlint -v src/foo.rs`");
-    }
+    let invocation = match &explicit_files {
+        Some(files) if files.len() == 1 && files[0].is_file() => Invocation::SingleFile,
+        _ => Invocation::Directory,
+    };
 
     print_io_warnings();
 
-    println!("Scanning {}...", workspace.display());
-    let detection = if let Some(files) = explicit_files {
-        detect::detect_explicit(&workspace, &files, args.verbose)
-    } else {
-        detect::detect_all(&workspace, args.verbose)
-    };
-
-    if args.verbose {
-        output::print_detection_summary(&detection);
+    if args.debug {
+        println!("Scanning {}...", workspace.display());
     }
+    let detection = if let Some(files) = explicit_files {
+        detect::detect_explicit(&workspace, &files, args.debug)
+    } else {
+        detect::detect_all(&workspace, args.debug)
+    };
 
     if detection.file_assignments.values().all(Vec::is_empty) {
         println!("Nothing to lint.");
@@ -186,37 +196,33 @@ fn main() -> ExitCode {
 
     let exit_code = match config.format {
         Some(FormatMode::Check) => {
-            println!("Running format (check)...\n");
             let fmt = runner::format::format(
                 &detection,
                 &chain,
                 &tools,
                 &workspace,
                 Mode::FormatPrint,
-                args.verbose,
+                invocation,
             );
-            ExitCode::from(output::print_results(&fmt, args.verbose))
+            ExitCode::from(report(&fmt, args.verbose, args.debug))
         }
         Some(FormatMode::Apply) => {
-            println!("Running format...\n");
-            let fmt = runner::format::format(
+            // Formatting is opt-in: apply it silently. vlint never reports what it reformatted,
+            // and reformatting never affects the exit code -- only the lint pass is reported.
+            let _ = runner::format::format(
                 &detection,
                 &chain,
                 &tools,
                 &workspace,
                 Mode::Format,
-                args.verbose,
+                invocation,
             );
-            let fmt_code = output::print_results(&fmt, args.verbose);
-            println!();
-            println!("Running lint...\n");
-            let lint = runner::lint::lint(&detection, &chain, &tools, &workspace, args.verbose);
-            ExitCode::from(fmt_code.max(output::print_results(&lint, args.verbose)))
+            let lint = runner::lint::lint(&detection, &chain, &tools, &workspace, invocation);
+            ExitCode::from(report(&lint, args.verbose, args.debug))
         }
         None => {
-            println!("Running lint...\n");
-            let results = runner::lint::lint(&detection, &chain, &tools, &workspace, args.verbose);
-            ExitCode::from(output::print_results(&results, args.verbose))
+            let results = runner::lint::lint(&detection, &chain, &tools, &workspace, invocation);
+            ExitCode::from(report(&results, args.verbose, args.debug))
         }
     };
 

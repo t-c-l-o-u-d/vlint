@@ -527,11 +527,6 @@ static TOOLS: &[ToolDef] = &[
     },
 ];
 
-#[must_use]
-pub fn has_tools_for(id: LinterId) -> bool {
-    TOOLS.iter().any(|t| t.linter_id == id)
-}
-
 pub fn build_owned_catalog() -> Vec<OwnedToolDef> {
     TOOLS.iter().map(OwnedToolDef::from).collect()
 }

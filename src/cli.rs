@@ -12,6 +12,9 @@ pub enum Subcommand {
 pub struct CliArgs {
     pub subcommand: Option<Subcommand>,
     pub verbose: bool,
+    /// Hidden flag (-d/--debug): detection ranking and skipped linters. Documented in the
+    /// man page but intentionally absent from --help.
+    pub debug: bool,
     pub config: Option<PathBuf>,
     pub files: Vec<PathBuf>,
 }
@@ -27,6 +30,7 @@ impl CliArgs {
         let mut result = CliArgs {
             subcommand: None,
             verbose: false,
+            debug: false,
             config: None,
             files: Vec::new(),
         };
@@ -52,6 +56,7 @@ impl CliArgs {
                 "--" => positional_only = true,
                 "-t" | "--tools" => result.subcommand = Some(Subcommand::Tools),
                 "-v" | "--verbose" => result.verbose = true,
+                "-d" | "--debug" => result.debug = true,
                 "-c" | "--config" => {
                     if let Some(val) = args.next() {
                         result.config = Some(PathBuf::from(val));
@@ -99,7 +104,7 @@ Arguments:
 
 Options:
   -t, --tools          List all tools and how each resolves
-  -v, --verbose        Verbose output: detection scoring details and full tool output
+  -v, --verbose        Verbose output: each tool's command line, config, and per-file PASS/FAIL
   -c, --config <FILE>  Path to a vlint config file (default: $XDG_CONFIG_HOME/vlint/config.ini)
   -h, --help           Print help
   -V, --version        Print version"
