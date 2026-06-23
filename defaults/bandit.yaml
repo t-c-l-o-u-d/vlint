@@ -1,3 +1,11 @@
 ---
 # SPDX-License-Identifier: AGPL-3.0-or-later
 skips: []
+# `assert` is idiomatic in pytest suites; B101's `-O`-strips-asserts concern is a
+# production-only risk. Skip the assert check on test files (matches ruff's S101
+# per-file-ignore in defaults/ruff.toml so the two tools agree).
+assert_used:
+  skips:
+    - '*_test.py'
+    - '*test_*.py'
+    - '*conftest.py'

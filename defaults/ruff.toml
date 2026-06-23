@@ -10,3 +10,11 @@ ignore = [
     "D203",   # conflicts with D211 (no-blank-line-before-class)
     "D213",   # conflicts with D212 (multi-line-summary-first-line)
 ]
+
+# `assert` is idiomatic in pytest suites; S101's `-O`-strips-asserts concern is a
+# production-only risk. Skip the assert check on test files (matches bandit's
+# assert_used skips in defaults/bandit.yaml so the two tools agree).
+[lint.per-file-ignores]
+"**/test_*.py" = ["S101"]
+"**/*_test.py" = ["S101"]
+"**/conftest.py" = ["S101"]
