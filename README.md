@@ -1,5 +1,9 @@
 # vlint - Lint and Format Code
 
+> [!WARNING]
+> **vlint is NO LONGER MAINTAINED.** Final release: v0.1.2 (2026-06-23).
+> Do not depend on it. Migrate to another tool immediately.
+
 Automatic linting and formatting with built in defaults.
 Existing linter configuration(s) overrides anything `vlint` includes.
 
