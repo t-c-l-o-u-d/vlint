@@ -114,6 +114,15 @@ fn report(out: &runner::LintOutput, verbose: bool, debug: bool) -> u8 {
     code
 }
 
+/// Loud, unconditional notice printed on every invocation: vlint is dead.
+fn print_deprecation_notice() {
+    eprintln!("============================================================");
+    eprintln!("  WARNING: vlint is NO LONGER MAINTAINED.");
+    eprintln!("  Final release: v0.1.2 (2026-06-23).");
+    eprintln!("  Do not depend on it. Migrate to another tool immediately.");
+    eprintln!("============================================================");
+}
+
 fn main() -> ExitCode {
     // Exit quietly on SIGPIPE (e.g. `vlint | head`) instead of panicking.
     #[cfg(unix)]
@@ -121,6 +130,8 @@ fn main() -> ExitCode {
     unsafe {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);
     }
+
+    print_deprecation_notice();
 
     let args = cli::CliArgs::parse();
 
